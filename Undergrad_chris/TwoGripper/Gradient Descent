@@ -1,0 +1,61 @@
+
+void localminGrad_norm(double M_thetaf[], double parameters[], double M_thetai[], double m_pos[], double m[], double Bo[3], double Fo[3])
+{
+
+    double step_size = parameters[0];
+    double step_size0 = parameters[0];
+    double min_funChange = parameters[1];
+
+    double alpha = 0.4;
+    double beta  =0.7;
+
+    double theta_1[M_NUM];
+    for (int count=0; count<M_NUM; count++)
+    {
+        M_thetaf[count]=M_thetai[count];
+    }
+
+    double funcval_grad[M_NUM];
+    double funcval = f_grad__norm(funcval_grad, parameters,M_thetaf, m_pos, m, Bo, Fo);
+
+    double last_funcval = funcval;
+
+
+    for (int j=0; j<60; j++)
+    {
+        for (int count=0; count<M_NUM; count++)
+        {
+            M_thetaf[count]=M_thetaf[count] - step_size*funcval_grad[count];
+        }
+
+        funcval = f_grad__norm(funcval_grad, parameters,M_thetaf, m_pos, m, Bo, Fo);
+
+//        cout << step_size*max(funcval_grad[0],funcval_grad[M_NUM-1]) << "      "<< step_size*min(funcval_grad[0],funcval_grad[M_NUM-1]) << endl;
+
+
+        while ( funcval > last_funcval && step_size*max(funcval_grad[0],funcval_grad[M_NUM-1]) > min_funChange*PI/180.0 && step_size*min(funcval_grad[0],funcval_grad[M_NUM-1]) < min_funChange*PI/-180.0)
+        {
+            step_size = step_size * 0.5;
+            for (int count=0; count<M_NUM; count++)
+            {
+                M_thetaf[count]=theta_1[count] - step_size*funcval_grad[count];
+            }
+            funcval = f_grad__norm(funcval_grad, parameters,M_thetaf, m_pos, m, Bo, Fo);
+
+//            cout << step_size*max(funcval_grad[0],funcval_grad[M_NUM-1])  << "  -    "<< step_size*min(funcval_grad[0],funcval_grad[M_NUM-1]) << endl;
+
+
+        }
+
+        last_funcval = funcval;
+        for (int count=0; count<M_NUM; count++)
+        {
+            theta_1[count]=M_thetaf[count];
+        }
+
+        if (step_size*max(funcval_grad[0],funcval_grad[M_NUM-1]) < min_funChange*PI/180.0 && step_size*min(funcval_grad[0],funcval_grad[M_NUM-1]) > min_funChange*PI/-180.0)
+        {
+            break;
+        }
+    }
+}

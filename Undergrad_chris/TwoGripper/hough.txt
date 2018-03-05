@@ -1,0 +1,47 @@
+﻿if (showagentcirc)    {
+		 ///   Hough circle algorithm starts here!!!!
+
+          //  cvtColor(img_m, img_m_gray, CV_BGR2GRAY);      //convert to gray-scale recommended for hough-circle algorithm
+         // Reduce the noise so we avoid false circle detection
+       //     GaussianBlur(img_m, img_m_gray, Size(9, 9), 2, 2 );
+         // threshold(img_m_gray, img_m_color, visionParam1, 255, THRESH_BINARY_INV );
+
+
+
+		   blur( img_m, img_m_gray, Size(setBlursizeHough,setBlursizeHough) ); //blur image to remove small blips etc
+	//	  medianBlur(img_m_gray, img_m_gray, BinaryThHough);
+		   				//smooth( img_m, img_m, CV_MEDIAN, 5, 5);
+		// ***		dilate( img_m_gray, img_m_gray, Mat(), Point(-1, -1), dilater, 1, 1);
+			// ***	erode( img_m_gray, img_m_gray, Mat(), Point(-1, -1), dilater, 1, 1);
+
+          // GaussianBlur(img_m, img_m_gray, Size(9, 9), 3, 3 );
+      //    Canny(img_m, img_m_gray, 50, 100, 3 );     //edge
+//Canny(img_m_gray, img_m_gray, cannyLow, cannyHigh, 3 ); //edge detect
+		 //   threshold( img_m_gray, img_m_gray, visionParam1, 255, THRESH_BINARY_INV );
+
+            //cvtColor(img_m_gray, img_m_gray, CV_BGR2GRAY);      //convert to gray-scale recommended for hough-circle algorithm
+         //   Canny(img_m_gray, img_m_gray, cannyLow, cannyHigh, 3 ); //edge detect
+
+			HoughCircles( img_m_gray, circles_m, CV_HOUGH_GRADIENT, 1, (int)width/14, visionParam1, visionParam2,   Hough_MinRAdius_var, Hough_MaxRAdius_var); //find circles on image
+		    cvtColor(img_m, img_m_color, CV_GRAY2BGR); //convert to color
+
+
+
+
+int cannyLow=100, cannyHigh=150; //thresholds for image processing filter
+static int dilater = 1;
+static int edgemap = 0, binary = 0; //are we performing edgemap calculations?
+int visionParam1 = 65; //for processing. Used in threshold() and houghCircle().
+int visionParam2 = 35; //for processing
+int Hough_MinRAdius_var =25;               //for processing. Used in houghCircle() indicating min radius of circles.
+int Hough_MaxRAdius_var = 200;             //for processing. Used in houghCircle() indicating max radius of circles.
+int showagentcirc = 0;           // Hough circle show multiagent
+int showagentBlob = 0;         // Blob  circle show multiagent
+int showagentBinary = 0;         // Binary show multiagent
+int showagentcircularity = 0.9;         // Binary show multiagent
+int showagentconvexity = 0.9;         // Binary show multiagent
+int showagentinertia = 0.9;         // Binary show multiagent
+int imcolor_enabled = 1;         // enable conversion to imcolor to draw field
+int setBlursizeHough = 5;        // set Blur size in Hough transform                put 7 if you are using Median filter otherwise 16 to 25 is good
+int swapthreshold = 35;         // set Binary Threshold in Hough transform
+int swapratio = 4;         // set swap ratio in Hough transform

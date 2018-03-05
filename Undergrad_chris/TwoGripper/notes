@@ -1,0 +1,51 @@
+
+To compile: USE MAKEFILE NOW! This below info is out of date.
+gcc -Wall -g -o tutorial main.c callbacks.c -export-dynamic `pkg-config --cflags --libs gtk+-2.0`
+or to use gtk3: 
+gcc `pkg-config --cflags gtk+-3.0` -o tutorial main.c `pkg-config --libs gtk+-3.0`
+newest:
+gcc -std=gnu99 `pkg-config --cflags gtk+-3.0` -o tutorial main.c callbacks.c vision.c pololu.c -export-dynamic `pkg-config --libs gtk+-3.0` -lm `pkg-config --cflags --libs opencv`
+
+
+for cpp:
+g++ -std=gnu99 `pkg-config --cflags gtk+-3.0` -o tutorial main.c callbacks.c vision.c pololu.c -export-dynamic `pkg-config --libs gtk+-3.0` -lm `pkg-config --cflags --libs opencv`
+
+
+To run program: 
+./tutorial
+
+
+
+To do:
+openCV not compatible with gtk3???? To fix, remove some linkers for opencv 
+OR remake openCV with gtk3 compatibility       GTK3=ON     http://stackoverflow.com/questions/22029939/opencv-getting-picture-from-default-webcam-in-c-c-gtk-issues
+OR use gtk2 always.
+**SOLVED by reverting to gtk2**
+
+
+VIDEO:
+*Show b/w image on command in gui
+*Show b/w image video in gui
+*Add video controls in gui
+*Add simple openCV mods to video
+*Detect object
+*Draw image position and other info on video
+*Record video
+*Complete button assignments
+Fix segfaults from spinbutton changes. **cannot track down the problem...
+*Register keystrokes
+Add second camera. Need new firewire port
+
+Implement PID controller
+
+
+
+CONTROL:
+Install DAQ
+Command current to motor drivers
+
+
+IMAGE DETECTION:
+Better algorithm for general shape:
+http://docs.opencv.org/doc/tutorials/imgproc/shapedescriptors/bounding_rects_circles/bounding_rects_circles.html#bounding-rects-circles
+
