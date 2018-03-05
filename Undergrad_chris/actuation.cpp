@@ -7,6 +7,8 @@ static int fKey = 0;                // if a key has been pressed, request review
 static float angle_heading = 0;     // Angle in degrees to be directly written to the set angle function
 static bool undergrad_control = 1;  // Flag for using undergrad path planning and tracking control
 static float *output_signals[1];       // This variable will be set to undergrad's get_output_signals function
+static int actuationThread = 0;   // Actuation flag :: initially disabled
+
 
 /* send signal to amplifiers */
 #define Coil_PX 0
@@ -30,7 +32,7 @@ void my_sleep (unsigned msec) {
             req.tv_sec = rem.tv_sec;
             req.tv_nsec = rem.tv_nsec;
         }
-        // Unhandleable error (EFAULT (bad pointer), EINVAL (bad timeval in tv_nsec), or ENOSYS (function not supported))
+        // Unhandleable error (DEFAULT (bad pointer), EINVAL (bad timeval in tv_nsec), or ENOSYS (function not supported))
         break;
     }
 }
@@ -303,16 +305,10 @@ static void* actuation_THREAD ( void *threadid ) {
 }
 
 /* start or stop the actuation thread */
-void on_tB_actuation_toggled (GtkToggleButton *togglebutton, gpointer data) {
-    int d = gtk_toggle_button_get_active (togglebutton);
-
-    if (d) {
-        fThread = 1;
-        pthread_t actuationThread;
-        pthread_create( &actuationThread, NULL, actuation_THREAD, NULL);  //start vision thread
-    } else {
-        fThread = 0;
-    }
+void on_tB_actuation_Thread (void) {
+    actuationThread = 1;
+    pthread_t actuationThread;
+    pthread_create( &actuationThread, NULL, actuation_THREAD, NULL);  //start actuation thread
 }
 
 void set_directionCode (int keycode) {

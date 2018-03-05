@@ -1914,7 +1914,7 @@
                             </child>
                             <child>
                               <object class="GtkToggleButton" id="tB_actuation">
-                                <property name="label" translatable="yes">togglebutton</property>
+                                <property name="label" translatable="yes">Activate Coils</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
@@ -1944,7 +1944,7 @@
                             </child>
                             <child>
                               <object class="GtkButton" id="button1">
-                                <property name="label" translatable="yes">Start</property>
+                                <property name="label" translatable="yes">Start Control</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>

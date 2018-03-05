@@ -21,7 +21,7 @@ double get_present_time (void);
 
 /* function declaration */
 extern "C" {
-    void on_tB_actuation_toggled (GtkToggleButton *togglebutton, gpointer data);
+    void on_tB_actuation_Thread (void);
 }
 void set_directionCode (int keycode);
 

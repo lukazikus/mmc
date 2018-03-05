@@ -889,10 +889,15 @@ void on_Pgain_changed (GtkEditable *editable, gpointer user_data){
 
 void on_startMMC_clicked (GtkWidget *widget, gpointer data) {
     on_startMMC_Thread();
-    printf("MMC clicked!\n");
+    printf("MMC path planning started!\n");
 }
 
 void on_stopMMC_clicked(GtkWidget *widget, gpointer data){
     on_stopMMC_Thread();
     printf("MMC stopped, coils turned off\n");
+}
+
+void on_actuation_clicked(GtkWidget *widget, gpointer data){
+    on_tB_actuation_Thread();
+    printf("Actuation started\n");
 }

@@ -42,13 +42,10 @@ static int centerP_dataSafeLock = 0;  // 1: centerP is being changed, wait until
 static float angle1;
 static float angle2;
 
-
 int binaryThreshold = 90;                   // indicating the level of binary conversion.
 int Hough_Erosion_adj = 0;                  //for processing. Used in houghCircle() indicating the level of erosion conversion.
 int Hough_dilation_adj = 6;                 //for processing. Used in houghCircle() indicating the level of dilation conversion.
 int setBlursizeHough = 10;          // set Blur size in Hough transform                put 7 if you are using Median filter otherwise 16 to 25 is good
-
-
 
 // X-Y Camera
 int cannyLow = 100, cannyHigh = 150; //thresholds for image processing filter
@@ -262,8 +259,6 @@ void* visionThread(void*) {
 		img_m = Mat(height, width, CV_8UC1, inImage); 													//convert to Mat format
 
 /*
-
-
 			Mat hsv;
 			Mat mask;
 			vector<vector<Point> > cnts;
