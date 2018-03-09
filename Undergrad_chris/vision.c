@@ -21,6 +21,7 @@ GtkLabel *labelFPSreceive, *labelFPSreceive_xz;
 static Point mouse, mouseC, mouseR;
 static Point mouse_xz, mouseC_xz, mouseR_xz;
 
+// York's parameters
 
 // Chris's global vision parameters
 static Image_JZ presFrame;                                      // present obtained frame
