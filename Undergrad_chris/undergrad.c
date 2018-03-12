@@ -16,7 +16,7 @@ static float cargo_orientation = 0; // 0 means robot mounts from top, M_PI means
 static int gradient_on = 1; // 1 means gradient field is on
 static int uniform_on = 0; // 0 means uniform field is on
 static float thresh = 2.0; // Distance in pixels that center of mass of robot can be from goal location
-static bool autonomous = 0; // IMPORTANT Flag for whether robot should follow autonomous path or just go wherever the mouse click tells it to
+static bool autonomous = 1; // IMPORTANT Flag for whether robot should follow autonomous path or just go wherever the mouse click tells it to
 static bool mountable = 0; // Flag for when the robot is able to mount to the cargo
 static int state = 0; // 0 means go towards cargo, 1 means orient to cargo, 2 means move towards cargo, 3 means go to goal position, 4 means orient properly
 static float goal_orientation; // Goal orientation that the cargo should take on
@@ -96,37 +96,14 @@ static int saturate_gradient_field_signal () {
 }
 
 // /*
-static int add_constant_and_gradient_field_signal () { // Real addition of gradient and uniform field
-    if (uniformFieldVolt[0] >= 0)
-        outputVolt[0] = uniform_on*uniformFieldVolt[0] + gradient_on*gradientFieldVolt[0];                                        // coil 1.0
-    else
-        outputVolt[0] = uniform_on*uniformFieldVolt[0] - gradient_on*gradientFieldVolt[0];
-    if (uniformFieldVolt[1] >= 0)
-        outputVolt[1] = uniform_on*uniformFieldVolt[1] - gradient_on*gradientFieldVolt[1];                                        // coil 1.1
-    else
-        outputVolt[1] = uniform_on*uniformFieldVolt[1] + gradient_on*gradientFieldVolt[1];
-    if (uniformFieldVolt[2] >= 0)
-        outputVolt[2] = uniform_on*uniformFieldVolt[2] + gradient_on*gradientFieldVolt[2];                                        // coil 2.0
-    else
-        outputVolt[2] = uniform_on*uniformFieldVolt[2] - gradient_on*gradientFieldVolt[2];
-    if (uniformFieldVolt[3] >= 0)
-        outputVolt[3] = uniform_on*uniformFieldVolt[3] - gradient_on*gradientFieldVolt[3];                                        // coil 2.1
-    else
-        outputVolt[3] = uniform_on*uniformFieldVolt[3] + gradient_on*gradientFieldVolt[3];                                                                                                // Z field coil
-    outputVolt[4] = uniform_on*uniformFieldVolt[4];
-    outputVolt[5] = uniform_on*uniformFieldVolt[5];
-    return 1;
-}
-// */
-
-/*
 static int add_constant_and_gradient_field_signal () {
+    uniformFieldVolt[0] = 0; uniformFieldVolt[1] = 0; uniformFieldVolt[2] = 0; uniformFieldVolt[3] = 0;
     if (gradientFieldVolt[0] >= 0) {
         outputVolt[0] = gradientFieldVolt[0];
         outputVolt[1] = 0;
     } else {
         outputVolt[0] = 0;
-        outputVolt[1] = gradientFieldVolt[0];
+        outputVolt[1] = gradientFieldVolt[1];
     }
 
     if (gradientFieldVolt[2] >= 0) {
@@ -134,12 +111,15 @@ static int add_constant_and_gradient_field_signal () {
         outputVolt[3] = 0;
     } else {
         outputVolt[2] = 0;
-        outputVolt[3] = gradientFieldVolt[2];
+        outputVolt[3] = gradientFieldVolt[3];
     }
+
+    outputVolt[4] = uniformFieldVolt[4];
+    outputVolt[5] = uniformFieldVolt[5];
 
     return 1;
 }
-*/
+// */
 
 static int output_signal_to_amplifier (void) {
     s826_aoPin(2, 2, fVibrate ? outputVolt[5] : 0);        // z-bottom 5.276  1st amplifier
@@ -148,14 +128,14 @@ static int output_signal_to_amplifier (void) {
     s826_aoPin(4, 2, outputVolt[2]);         // y-left    5.296   4th amplifier
     s826_aoPin(3, 2, outputVolt[1]);         // -x coil  5.14     5th amplifier
     s826_aoPin(0, 2, outputVolt[0]);         // +x coil     5.32    6th amplifier
-    // printf("output voltage %.2f, %.2f, %.2f, %.2f, 0, 0\n",outputVolt[0],
-            // outputVolt[1],outputVolt[2],outputVolt[3]);
+    printf("output voltage %.2f, %.2f, %.2f, %.2f,  %.2f,  %.2f\n",outputVolt[0],
+            outputVolt[1],outputVolt[2],outputVolt[3],outputVolt[4],outputVolt[5]);
     return 1;
 }
 
 static void * autonomy_thread(void * threadid){
     // Pulling thread
-    printf("MMC_thread starts\n");
+    printf("MMC_thread started\n");
 
     float globalFieldAngle = 0.0, globalFieldAngleMemo = 0.0;                   // output field angle for constant field and its memory
     float angle_des=0, pull_const=0, int_const=0, der_const=0, errorPull=0, errorSum=0,\
@@ -250,15 +230,15 @@ static void * autonomy_thread(void * threadid){
 
         // Create walking motion with varying z coil actuation
         presentTime = get_present_time ();
-        timeElapsed = presentTime - startTime - (int) (presentTime - startTime)/periodTime; // Replace inefficient method below
-        // if (timeElapsed >= periodTime) {
-        //     while (timeElapsed >= periodTime) {
-        //         timeElapsed = timeElapsed - periodTime;
-        //     }
-        //     startTime = presentTime - timeElapsed;
-        // }
+
+        timeElapsed = presentTime - startTime;
+        if(timeElapsed >= periodTime){
+            timeElapsed = timeElapsed - periodTime*(int)((presentTime - startTime)/periodTime); // Bring timeElapsed into period range
+            startTime = presentTime - timeElapsed;
+        }
 
         outputVZ = -1.0 * ampZ * timeElapsed / periodTime;         // make the object tail tilt up
+        printf("AmpZ: %.2f, Time Elapsed: %.2f, Period Time: %.2f\n", ampZ, timeElapsed, periodTime);
         uniformFieldVolt[4] = outputVZ; // Set z axis voltages
         uniformFieldVolt[5] = outputVZ;
 
@@ -303,8 +283,4 @@ int on_stopMMC_Thread(void){
     s826_aoPin(4, 2, 0);         // +y-left    5.296   4th amplifier
     s826_aoPin(3, 2, 0);         // -x coil  5.14     5th amplifier
     s826_aoPin(0, 2, 0);         // +x coil     5.32    6th amplifier
-}
-
-float *get_output_signals(void){
-    return outputVolt;
 }
