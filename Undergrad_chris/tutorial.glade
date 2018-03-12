@@ -1919,7 +1919,7 @@
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
                                 <property name="use_action_appearance">False</property>
-                                <signal name="toggled" handler="on_tB_actuation_toggled" swapped="no"/>
+                                <signal name="toggled" handler="on_tB_actuation_clicked" swapped="no"/>
                               </object>
                               <packing>
                                 <property name="expand">True</property>

@@ -133,7 +133,7 @@ extern "C" {  //use to fix C++ name mangling problem, when compiling with g++ in
   void on_startMMC_clicked (GtkWidget *widget, gpointer data);     // this starts the pulling thread in MMC proj
   void on_stopMMC_clicked (GtkWidget *widget, gpointer data);     // this starts the pulling thread in MMC proj
   void on_HoughBlur_changed (GtkEditable *editable, gpointer user_data);           // To set Blur Marker Size in Hough transform
-  void on_actuation_clicked(GtkWidget *widget, gpointer data); // To start the coils
+  void on_tB_actuation_clicked(GtkWidget *widget, gpointer data); // To start the coils
 }
 
 #endif

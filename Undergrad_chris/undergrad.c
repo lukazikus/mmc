@@ -6,7 +6,7 @@ static int fGradient = 0;                       // whether or not apply a gradie
 static float gradientAmpX = 7;
 static float gradientAmpY = 3;
 
-//// Global MMC variables
+// Global MMC variables
 static float PgainMMC = 10;   // P gain in MMC
 static float IgainMMC = 10;   // I gain in MMC
 static float DgainMMC = 10;   // D gain in MMC
@@ -20,6 +20,12 @@ static bool autonomous = 0; // IMPORTANT Flag for whether robot should follow au
 static bool mountable = 0; // Flag for when the robot is able to mount to the cargo
 static int state = 0; // 0 means go towards cargo, 1 means orient to cargo, 2 means move towards cargo, 3 means go to goal position, 4 means orient properly
 static float goal_orientation; // Goal orientation that the cargo should take on
+
+// Tilt angle variables
+static int fVibrate = 1; // Flag for whether the robot should conduct stick slip motion
+float tiltAngle = 20;           // tilting angle of degrees
+float ampXY = 1;                // field amplitude in voltage
+float ampZ  = ampXY * tand(tiltAngle);
 
 static float outputVolt[6] = {0,0,0,0,0,0};                         // output voltage to amplifiers
 static float uniformFieldVolt[6] = {0,0,0,0,0,0};                   // uniform component of magnetic field, x, y, z
@@ -89,8 +95,8 @@ static int saturate_gradient_field_signal () {
     return 1;
 }
 
-/*
-static int add_constant_and_gradient_field_signal () {
+// /*
+static int add_constant_and_gradient_field_signal () { // Real addition of gradient and uniform field
     if (uniformFieldVolt[0] >= 0)
         outputVolt[0] = uniform_on*uniformFieldVolt[0] + gradient_on*gradientFieldVolt[0];                                        // coil 1.0
     else
@@ -106,12 +112,14 @@ static int add_constant_and_gradient_field_signal () {
     if (uniformFieldVolt[3] >= 0)
         outputVolt[3] = uniform_on*uniformFieldVolt[3] - gradient_on*gradientFieldVolt[3];                                        // coil 2.1
     else
-        outputVolt[3] = uniform_on*uniformFieldVolt[3] + gradient_on*gradientFieldVolt[3];
+        outputVolt[3] = uniform_on*uniformFieldVolt[3] + gradient_on*gradientFieldVolt[3];                                                                                                // Z field coil
+    outputVolt[4] = uniform_on*uniformFieldVolt[4];
+    outputVolt[5] = uniform_on*uniformFieldVolt[5];
     return 1;
 }
-*/
+// */
 
-// /*
+/*
 static int add_constant_and_gradient_field_signal () {
     if (gradientFieldVolt[0] >= 0) {
         outputVolt[0] = gradientFieldVolt[0];
@@ -131,18 +139,11 @@ static int add_constant_and_gradient_field_signal () {
 
     return 1;
 }
-// */
+*/
 
-static int fVibrate = 1;
 static int output_signal_to_amplifier (void) {
-    /*
-    if (fVibrate)
-        fVibrate = 0;
-    else
-        fVibrate = 1;
-    */
-    s826_aoPin(2, 2, 0);        // z-bottom 5.276  1st amplifier
-    s826_aoPin(5, 2, 0);                     // z-top  4.44      2nd amplifier
+    s826_aoPin(2, 2, fVibrate ? outputVolt[5] : 0);        // z-bottom 5.276  1st amplifier
+    s826_aoPin(5, 2, fVibrate ? outputVolt[4] : 0);                     // z-top  4.44      2nd amplifier
     s826_aoPin(1, 2, outputVolt[3]);         // y-right  4.96     3rd amplifier
     s826_aoPin(4, 2, outputVolt[2]);         // y-left    5.296   4th amplifier
     s826_aoPin(3, 2, outputVolt[1]);         // -x coil  5.14     5th amplifier
@@ -167,6 +168,13 @@ static void * autonomy_thread(void * threadid){
     double goalMouse_MAx=0;
     double goalMouse_MAy=0;
     float norm = 0.0;
+
+    float freq = 10;                // frequency of vibration
+    float periodTime = 1.0 / freq;  // time per period
+
+    double startTime = 0, presentTime = 0, timeElapsed = 0; // Time variables
+    startTime = get_present_time ();
+    float outputVZ = 0; // Output z axis voltage
 
     // RUNNING
     while ( MMCThread ) {
@@ -236,25 +244,27 @@ static void * autonomy_thread(void * threadid){
         gradientFieldVolt[3] = pull_const * sin(pulling_angle) / (Coilpair_ratio_MA*20);
 
         uniformFieldVolt[0] = B_strength_MA * cos(globalFieldAngle) / 5.32;         // x-left
-        uniformFieldVolt[1] = B_strength_MA * cos(globalFieldAngle) / 5.14;         // x-right
+        uniformFieldVolt[1] = B_strength_MA * cos(globalFieldAngle) / 5.32;         // x-right
         uniformFieldVolt[2] = B_strength_MA * sin(globalFieldAngle) / 5.2;          // y-left
         uniformFieldVolt[3] = B_strength_MA * sin(globalFieldAngle) / 5.2;          // y-right
 
-        /*if (fabs(32*uniformFieldVolt[0]) < 1e-5 || fabs(32*uniformFieldVolt[1]) < 1e-5) {// to avoid singularities in X  default constant 0.5 :: it means field is only in X-direction, and so the only choice for pulling too
-            gradientFieldVolt[0] = 0;
-            gradientFieldVolt[1] = 0;
-            printf("x coil set to zero \n");
-        }
+        // Create walking motion with varying z coil actuation
+        presentTime = get_present_time ();
+        timeElapsed = presentTime - startTime - (int) (presentTime - startTime)/periodTime; // Replace inefficient method below
+        // if (timeElapsed >= periodTime) {
+        //     while (timeElapsed >= periodTime) {
+        //         timeElapsed = timeElapsed - periodTime;
+        //     }
+        //     startTime = presentTime - timeElapsed;
+        // }
 
-        if (fabs(32*uniformFieldVolt[2]) < 1e-5 || fabs(32*uniformFieldVolt[3]) < 1e-5) { // to avoid singularities in Y  :: it means field is only in Y-direction, and so the only choice for pulling too
-            gradientFieldVolt[2] = 0;
-            gradientFieldVolt[3] = 0;
-        }
-        */
+        outputVZ = -1.0 * ampZ * timeElapsed / periodTime;         // make the object tail tilt up
+        uniformFieldVolt[4] = outputVZ; // Set z axis voltages
+        uniformFieldVolt[5] = outputVZ;
 
         saturate_gradient_field_signal (); // Saturate gradient field signal to limit it
         add_constant_and_gradient_field_signal (); // Add gradient and uniform field
-        // output_signal_to_amplifier (); // Write to amplifier to output current (note this is not necessary if used with actuation.cpp)
+        output_signal_to_amplifier (); // Write to amplifier to output current (note this is not necessary if used with actuation.cpp)
         usleep(5e4);
     }
 
@@ -263,136 +273,12 @@ static void * autonomy_thread(void * threadid){
 
 }
 
-static void * keyboard_thread (void * threadid) {
-    printf("keyboard_thread started\n");
-    coilCurrentClear();
-    float px=0.0, nx=0.0,py=0.0,ny=0.0,pz=0.0,nz=0.0;
-    float xAmp=0.0, yAmp=0.0, zAmp=0.0;
-    while ( fThread ) {
-
-    // goalMouse[0] = getGoalPointCoor();               // get mouse key goal point; vision.c
-    // center_coor[0] =  getCenterPointCoor_MA();      // get the robot position
-
-    float goal_pose[3] = {500,650,0}; // Goal pose: x,y,theta
-
-    // calculates states errors
-    // errorPull = sqrt(pow(goalMouse_MA[0][0] - center_coor[0][0], 2) + pow(goalMouse_MA[0][1] - center_coor[0][1], 2));      // dis. from current position of robot to goal position
-    // pulling_ang = atan2((float)(goalMouse_MA[0][1] - center_coor[0][1]), (float)(goalMouse_MA[0][0] - center_coor[0][0]));   // pulling angle
-    // // P-control law
-    // pull_const = pullGain * errorPull;   //  P plus PI controller for pulling
-    // xAmp = pull_const * cos(pulling_ang)+uniform_mag*cos(headingM);  // calculates the current in x-direction to generate desired force_x
-    // yAmp = pull_const * sin(pulling_ang)+uniform_mag*sin(headingM);   // calculates the current in y-direction to generate desired force_y
-
-    //printf("field gradient is %.2f\n", gradientDir*180.0/M_PI);
-    xAmp = gradientAmpX * cos(gradientDir) ;
-    yAmp = gradientAmpX * sin(gradientDir);
-    if (xAmp >=0) {
-        px = xAmp;
-        nx = 0.0;
-    } else {
-        px = 0.0;
-        nx = xAmp;
-    }
-    if (yAmp >=0) {
-        py = yAmp;
-        ny = 0.0;
-    } else {
-        py = 0.0;
-        ny = yAmp;
-    }
-    if (fGradient == 1){
-        amplifier_set_each_coil_current (px, nx, py, ny, pz, nz);
-    }else{
-        coilCurrentClear();
-    }
-    usleep(1e4);
-    }
-    coilCurrentClear();
-    printf("keyboard_thread ended\n");
-}
-
-// toggle the keyboard detection thread
-int undergrad_keyboard_init_stop(int d) {
-    if (d==1){
-        fThread = 1;
-        pthread_t keyboardThread;
-        pthread_create(&keyboardThread, NULL, keyboard_thread, NULL);
-    } else
-        fThread = 0;
-
-    return 1;
-}
-
-// set gradient dir using keyboard
-int undergrad_set_dir(int d) {
-    switch (d) {
-        case 0: gradientDir = 0.0; fGradient = 1;  break;
-        case 1: gradientDir = M_PI_2; fGradient = 1;   break;
-        case 2: gradientDir = M_PI; fGradient = 1; break;
-        case 3: gradientDir = -M_PI_2; fGradient = 1; break;
-        case 4: gradientDir = M_PI_4; fGradient = 1; break;
-        case 5: gradientDir =  3.0 * M_PI_4; fGradient = 1; break;
-        case 6: gradientDir = -M_PI_4; fGradient = 1; break;
-        case 7: gradientDir = -3.0 * M_PI_4; fGradient = 1; break;
-        case -1: gradientDir = 0.0; fGradient = 0; break;
-    }
-    printf("field gradient is %.2f\n", gradientDir*180.0/M_PI);
-    return 1;
-}
-
-static void * walk_thread (void * threadid) {
-    printf("walk_thread started\n");
-    coilCurrentClear();
-    float px=0.0, nx=0.0,py=0.0,ny=0.0,pz=0.0,nz=0.0;
-    float xAmp=0.0, yAmp=0.0, zAmp=0.0;
-    float theta = M_PI_4;
-    float delta = M_PI_2 / 6.0;
-    int index = 0;
-    float amp = 5;
-    while ( fThread ) {
-        xAmp = amp * cos(theta + delta*sin(index/40.0*2*M_PI)) * cos(gradientDir + delta*cos(index/40.0*2*M_PI));
-        yAmp = amp * cos(theta + delta*sin(index/40.0*2*M_PI)) * sin(gradientDir + delta*cos(index/40.0*2*M_PI));
-        zAmp = amp * sin(theta + delta*sin(index/40.0*2*M_PI));
-        px = xAmp;
-        nx = xAmp;
-        py = yAmp;
-        ny = yAmp;
-        pz = zAmp;
-        nz = zAmp;
-        if (fGradient == 1)
-            amplifier_set_each_coil_current (px, nx, py, ny, pz, nz);
-        index ++;
-        if (index >= 40)    index = 0;
-        usleep(1e4);
-    }
-    coilCurrentClear();
-    printf("walk_thread ended\n");
-}
-
-// toggle the walk thread
-int undergrad_walk_init_stop (int d) {
-    if (d==1){
-        if (fThread == 1) {
-            fThread = 0;
-            usleep(1e6);
-        }
-        fThread = 1;
-        pthread_t walkThread;
-        pthread_create(&walkThread, NULL, walk_thread, NULL);
-    } else
-        fThread = 0;
-
-    return 1;
-}
-
-int undergrad_set_x_gradient(float d) {
-    gradientAmpX = d;
-    return 1;
-}
-
-int undergrad_set_y_gradient(float d) {
-    gradientAmpY = d;
-    return 1;
+// Get present time of day (from actuation.cpp)
+double get_present_time (void) {
+    struct timeval presentTime;
+    gettimeofday( &presentTime, NULL );
+    double returnVal = (double) presentTime.tv_sec + presentTime.tv_usec * 1e-6;        // second
+    return returnVal;
 }
 
 ////////   MMC functions that run after interacting with GUI  //////

@@ -821,60 +821,6 @@ GtkNotebookPage *notebook_page, int page, gpointer data)
 	set_current_tab_page (page);
 }
 
-// undergradate projection
-// toggle the keyboard detection thread
-void on_undergrad_keyboard_toggled (GtkToggleButton *togglebutton, gpointer data) {
-	int d = gtk_toggle_button_get_active(togglebutton);
-	undergrad_keyboard_init_stop (d);
-}
-
-// toggle walking thread
-void on_undergrad_walk_toggled (GtkToggleButton *togglebutton, gpointer data) {
-	int d = gtk_toggle_button_get_active(togglebutton);
-	undergrad_walk_init_stop (d);
-}
-
-void on_undergrad_xGradientSpin_changed (GtkEditable *editable, gpointer user_data) {
-    float d = gtk_spin_button_get_value(GTK_SPIN_BUTTON(editable));
-    undergrad_set_x_gradient(d);
-}
-
-void on_undergrad_yGradientSpin_changed (GtkEditable *editable, gpointer user_data) {
-    float d = gtk_spin_button_get_value(GTK_SPIN_BUTTON(editable));
-    undergrad_set_y_gradient(d);
-}
-
-// keystrokes
-gboolean key_event (GtkWidget *widget, GdkEventKey *event) {
-	printf("%s\n", gdk_keyval_name (event->keyval)  );
-	keyPressed[ event->keyval ] = TRUE; 			//set the appropriate key value true
-
-	if(    (event->keyval == GDK_KEY_period)
-	    || (event->keyval == GDK_KEY_BackSpace)
-	    || (event->keyval == GDK_KEY_Delete)
-	    || (event->keyval == GDK_KEY_Return) )
-		return FALSE; 					//register keystroke to gui normally for numbers
-
-	switch (event->keyval) {
-		case GDK_KEY_Right: undergrad_set_dir(0); break;   // +x
-		case GDK_KEY_Up:    undergrad_set_dir(1); break;   // +y
-		case GDK_KEY_Left:  undergrad_set_dir(2); break;   // -x
-		case GDK_KEY_Down:  undergrad_set_dir(3); break;   // -y
-
-		case GDK_KEY_KP_6: undergrad_set_dir(0); break;   // +x
-        case GDK_KEY_KP_8: undergrad_set_dir(1); break;   // +y
-        case GDK_KEY_KP_4: undergrad_set_dir(2); break;   // -x
-        case GDK_KEY_KP_2: undergrad_set_dir(3); break;   // -y
-        case GDK_KEY_KP_9: undergrad_set_dir(4); break;   // 1st Quad
-        case GDK_KEY_KP_7: undergrad_set_dir(5); break;   // 2nd Quad
-        case GDK_KEY_KP_3: undergrad_set_dir(6); break;   // 3rd Quad
-        case GDK_KEY_KP_1: undergrad_set_dir(7); break;   // 4th Quad
-        case GDK_KEY_KP_5: undergrad_set_dir(-1);   break;   // stop field
-
-	}
-	return TRUE; 						//returning true means that the keypress event wont be processed normally
-}
-
 gboolean key_event_release(GtkWidget *widget, GdkEventKey *event) {
 	keyPressed[ event->keyval ] = FALSE; 			//set the appropriate key value FALSE
 	return TRUE;
@@ -895,9 +841,4 @@ void on_startMMC_clicked (GtkWidget *widget, gpointer data) {
 void on_stopMMC_clicked(GtkWidget *widget, gpointer data){
     on_stopMMC_Thread();
     printf("MMC stopped, coils turned off\n");
-}
-
-void on_actuation_clicked(GtkWidget *widget, gpointer data){
-    on_tB_actuation_Thread();
-    printf("Actuation started\n");
 }

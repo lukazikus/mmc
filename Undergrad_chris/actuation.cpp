@@ -290,7 +290,7 @@ static void* actuation_THREAD ( void *threadid ) {
         /* apply gradient when robot slips */
         if (timeElapsed >= 0.8 * periodTime) {
             // output gradient along moving direction
-            //coil.add_gradient_output();
+            // coil.add_gradient_output();
         }
         coil.output_signal ();
         //send_signal_to_amplifier (outputV);
@@ -308,6 +308,7 @@ static void* actuation_THREAD ( void *threadid ) {
 void on_tB_actuation_Thread (void) {
     actuationThread = 1;
     pthread_t actuationThread;
+    printf("Started TB Actuation Thread\n");
     pthread_create( &actuationThread, NULL, actuation_THREAD, NULL);  //start actuation thread
 }
 

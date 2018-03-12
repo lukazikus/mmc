@@ -60,8 +60,6 @@ int main (int argc, char *argv[])
 	// g_signal_connect(instance, detailed_signal, c_handler, data)
 	// Connects a GCallback function to a signal for a particular object.
 	// The handler will be called before the default handler of the signal.
-    g_signal_connect(window, "key-press-event",   G_CALLBACK(key_event), NULL); //register keystrokes
-	g_signal_connect(window, "key-release-event", G_CALLBACK(key_event_release), NULL); //register keystrokes
 
     gtk_builder_connect_signals (builder, NULL);
     // g_signal_connect (G_OBJECT (window), "destroy",  G_CALLBACK (on_window_destroy),     NULL);
