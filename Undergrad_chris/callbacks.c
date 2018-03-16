@@ -4,7 +4,7 @@
 // Edited by :
 ////////////////////////////////////////////////////////////////////////////////////////
 #include "callbacks.h"
-
+// no
 bool visionStarted = false;  //is the vision running?
 
 static uint GUI_refresh_flag_vidWin1 = 1;        // 1: refresh the vidWin1 @ a certain rate

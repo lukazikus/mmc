@@ -4,7 +4,7 @@ static int fThread = 0;
 static float gradientDir = 0.0;                 // gradient angle (radian) w.r.t. +x
 static int fGradient = 0;                       // whether or not apply a gradient
 static float gradientAmpX = 7;
-static float gradientAmpY = 3;
+static float gradienstAmpY = 3;
 
 // Global MMC variables
 static float PgainMMC = 10;   // P gain in MMC

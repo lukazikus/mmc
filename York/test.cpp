@@ -31,39 +31,63 @@ int main(){
   }
 
   while(1){
+
     Mat frame;
     Mat hsv;
-    Mat ir;
-    Mat er;
     Mat mask;
+    Mat mask2;
     Mat binaryImg;
     vector<vector<Point> > cnts;
+    vector<vector<Point> > cnts2;
     cap >> frame;
     if (frame.empty())
       break;
-    frame=frame(Rect(0,50,600,400)); //crop the frame
-    cvtColor(frame,hsv,COLOR_BGR2HSV);
-    inRange(hsv,Scalar(0,0,0),Scalar(60,60,60),mask);
-    //erode(ir,er,0,point(-1,-1),2,1,1);
-    //dilate(er,mask,0,point(-1,-1),2,1,1);
+    frame=frame(Rect(0,50,500,400)); //crop the frame
+    cvtColor(frame,hsv,COLOR_BGR2GRAY);
+    inRange(hsv,0,60,mask);
+    Mat maskfororientation = mask;
+    erode(mask,mask,Mat(),Point(-1,-1),2);
+    dilate(mask,mask,Mat(),Point(-1,-1),2);
+	inRange(hsv,80,230,mask2);
+    erode(mask2,mask2,Mat(),Point(-1,-1),2);
+    dilate(mask2,mask2,Mat(),Point(-1,-1),2);
+
     findContours(mask,cnts,RETR_EXTERNAL,CHAIN_APPROX_SIMPLE,Point(0,0));
+	findContours(mask2,cnts2,RETR_EXTERNAL,CHAIN_APPROX_SIMPLE,Point(0,0));
+
     if ((int)cnts.size()>0){
+
         sort(cnts.begin(), cnts.end(),compareContourAreas);
+
+    	sort(cnts2.begin(), cnts2.end(),compareContourAreas);
+
         //printf("size: %d\n", (int)cnts.size());
         vector<RotatedRect> output(cnts.size());
 
         for( int i = 0; i < cnts.size(); i++ ){
             output[i] = minAreaRect(cnts[i]);
         }
-
-        float r_angle;
         float r_x=output[0].center.x;
         float r_y=output[0].center.y;
         float r_w=output[0].size.width;
         float r_h=output[0].size.height;
 
+		drawContours(frame,cnts,0,Scalar(0,0,255),2);
+        putText(frame,"Robot",Point((int)r_x,(int)r_y),FONT_HERSHEY_SIMPLEX,0.5,255,2);
+        Point2f center;
+        float radius;
+        //for( int i = 0; i < cnts2.size(); i++ ){
+        minEnclosingCircle(cnts2[0],center,radius);
+        //}
+        float c_x=center.x;
+        float c_y=center.y;
+        float c_r=radius;
+        circle(frame, Point((int)c_x,(int)c_y), (int)radius, Scalar(0, 255, 0), 2, 8, 0 );
+        putText(frame,"Cargo",Point((int)c_x,(int)c_y),FONT_HERSHEY_SIMPLEX,0.5,255,2);
+
+
         //get robot angle___________________________________________________________________________
-        threshold ( frame, binaryImg, 65, 255, THRESH_BINARY_INV );
+        threshold (frame, binaryImg, 65, 255, THRESH_BINARY_INV );
         float tempAngle = output[0].angle;          // get angle of rotated rect
         int checkPt[8];
         //printf("angle: %.3f, width: %.3f, height: %.3f\n", tempAngle, width, height);
@@ -81,20 +105,21 @@ int main(){
         //                                        binaryImg.at<unsigned char>(checkPt[5],checkPt[4]),
         //                                        binaryImg.at<unsigned char>(checkPt[7],checkPt[6]));
 
+        float r_angle;
         int iDir = -1;
-        if (binaryImg.at<unsigned char>(checkPt[1],checkPt[0]) == 0){
+        if (maskfororientation.at<unsigned char>(checkPt[1],checkPt[0]) == 0){
             iDir = 0;
             r_angle=output[0].angle+180;}
-        else if (binaryImg.at<unsigned char>(checkPt[3],checkPt[2]) == 0){
+        else if (maskfororientation.at<unsigned char>(checkPt[3],checkPt[2]) == 0){
             iDir = 1;
             r_angle=output[0].angle+270;}
-        else if (binaryImg.at<unsigned char>(checkPt[5],checkPt[4]) == 0){
+        else if (maskfororientation.at<unsigned char>(checkPt[5],checkPt[4]) == 0){
             iDir = 2;
-            r_angle=output[0].angle;}
-        else if (binaryImg.at<unsigned char>(checkPt[7],checkPt[6]) == 0){
+            r_angle=output[0].angle+360;}
+        else if (maskfororientation.at<unsigned char>(checkPt[7],checkPt[6]) == 0){
             iDir = 3;
             r_angle=output[0].angle+90;}
-        printf("Fake Angle: %.2f\n",output[0].angle);
+        circle(frame, Point(checkPt[iDir*2], checkPt[iDir*2+1]), 5, Scalar(255,0,0));
         printf("Robot Angle: %.2f\n",r_angle);
         //___________________________________________________________________________________
         // printf("Angle: %.2f\n",r_angle);
@@ -105,11 +130,14 @@ int main(){
     else {
         break;
     }
+
     imshow( "Frame", frame);
+
     char c=(char)waitKey(25);
     if(c==27)
       break;
   }
+
   cap.release();
   destroyAllWindows();
 
