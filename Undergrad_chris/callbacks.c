@@ -833,6 +833,18 @@ void on_Pgain_changed (GtkEditable *editable, gpointer user_data){
     printf("P changed\n");
 }
 
+void on_Igain_changed (GtkEditable *editable, gpointer user_data){
+	float d = gtk_spin_button_get_value(GTK_SPIN_BUTTON(editable));
+	setIgain_MMC((int)d);  // This inilializes your internal variable
+    printf("I changed\n");
+}
+
+void on_Dgain_changed (GtkEditable *editable, gpointer user_data){
+	float d = gtk_spin_button_get_value(GTK_SPIN_BUTTON(editable));
+	setDgain_MMC((int)d);  // This inilializes your internal variable
+    printf("D changed\n");
+}
+
 void on_startMMC_clicked (GtkWidget *widget, gpointer data) {
     on_startMMC_Thread();
     printf("MMC path planning started!\n");

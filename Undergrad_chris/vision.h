@@ -98,5 +98,6 @@ static void draw_3d_magnetic_field (Mat,float,float);
 static void draw_3d_magnetic_field_twisted (Mat,float,float);
 // static void draw_digital_arena (Mat, float, float, float, float);
 static void draw_digital_arena (Mat*);
+static void draw_goal(Mat*);
 
 #endif

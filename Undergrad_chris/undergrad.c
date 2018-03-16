@@ -8,18 +8,19 @@ static float gradientAmpY = 3;
 
 // Global MMC variables
 static float PgainMMC = 10;   // P gain in MMC
-static float IgainMMC = 10;   // I gain in MMC
-static float DgainMMC = 10;   // D gain in MMC
+static float IgainMMC = 0;   // I gain in MMC
+static float DgainMMC = 0;   // D gain in MMC
 static int MMCThread = 0;   // MMC flag :: initially disabled
 static int tol = 5; // Distance behind cargo that robot's centre of mass should go to
 static float cargo_orientation = 0; // 0 means robot mounts from top, M_PI means robot mounts from bottom
 static int gradient_on = 1; // 1 means gradient field is on
 static int uniform_on = 0; // 0 means uniform field is on
 static float thresh = 2.0; // Distance in pixels that center of mass of robot can be from goal location
-static bool autonomous = 1; // IMPORTANT Flag for whether robot should follow autonomous path or just go wherever the mouse click tells it to
+static bool autonomous = 0; // IMPORTANT Flag for whether robot should follow autonomous path or just go wherever the mouse click tells it to
 static bool mountable = 0; // Flag for when the robot is able to mount to the cargo
 static int state = 0; // 0 means go towards cargo, 1 means orient to cargo, 2 means move towards cargo, 3 means go to goal position, 4 means orient properly
 static float goal_orientation; // Goal orientation that the cargo should take on
+static float freq = 10;                // frequency of vibration
 
 // Tilt angle variables
 static int fVibrate = 1; // Flag for whether the robot should conduct stick slip motion
@@ -50,9 +51,9 @@ static float field_angle_MA_Binary=0;
 static float input_angleVAr_MA=0;
 static float field_angle_MA_local=0;
 
-static float  Coilpair_ratio_MA = 1;          // ratio between the pair of coils
-static float  saturationGradientFieldVolt = 1;                 // saturation field strength for gradient generation
-static float  integral_k = 1.2e-8;            // ratio between the pair of coils
+static float  Coilpair_ratio_MA = 1;           // ratio between the pair of coils
+static float  saturationGradientFieldVolt = 1; // saturation field strength for gradient generation
+static float  integral_k = 1.2e-8;             // ratio between the pair of coils
 static float* des_valMA[1];
 
 static int saturate_gradient_field_signal () {
@@ -97,7 +98,6 @@ static int saturate_gradient_field_signal () {
 
 // /*
 static int add_constant_and_gradient_field_signal () {
-    uniformFieldVolt[0] = 0; uniformFieldVolt[1] = 0; uniformFieldVolt[2] = 0; uniformFieldVolt[3] = 0;
     if (gradientFieldVolt[0] >= 0) {
         outputVolt[0] = gradientFieldVolt[0];
         outputVolt[1] = 0;
@@ -149,7 +149,6 @@ static void * autonomy_thread(void * threadid){
     double goalMouse_MAy=0;
     float norm = 0.0;
 
-    float freq = 10;                // frequency of vibration
     float periodTime = 1.0 / freq;  // time per period
 
     double startTime = 0, presentTime = 0, timeElapsed = 0; // Time variables
@@ -163,40 +162,39 @@ static void * autonomy_thread(void * threadid){
         cargo_pos[0] = get_cargo_pose(); // Get mouse key goal point; vision.c
 
         if(autonomous && state == 0){ // Go towards cargo
-            goal_pos[0][0] = cargo_pos[0][0] - tol*sin(cargo_orientation); // Use for automatically positioning robot next to cargo
-            goal_pos[0][1] = cargo_pos[0][1] - tol*cos(cargo_orientation);
-            uniform_on = 0; // Robot should move towards cargo
-            gradient_on = 1;
-            globalFieldAngle = pulling_angle;
+            goal_pos[0][0] = cargo_pos[0][0] - tol*sin(cargo_pos[0][2]); // Use for automatically positioning robot next to cargo
+            goal_pos[0][1] = cargo_pos[0][1] - tol*cos(cargo_pos[0][2]);
+            fVibrate = 1; // Vibrate to let robot move
+            // globalFieldAngle = pulling_angle;
             if(errorPull < thresh){
                 state = 1;
             }
         }else if(autonomous && state == 1){ // Turn towards cargo
-            globalFieldAngle = cargo_pos[0][2]; // Align to cargo
-            uniform_on = 1;
-            gradient_on = 0;
+            // globalFieldAngle = cargo_pos[0][2]; // Align to cargo
+            goal_pos[0][0] = robot_pos[0][0] + cos(cargo_pos[0][2]); // Dummy goal position so that robot orients towards cargo
+            goal_pos[0][1] = robot_pos[0][1] + sin(cargo_pos[0][2]);
+            fVibrate = 0; // No need to vibrate when just aligning to goal pose
             usleep(2000); // Give 2s for the microrobot to orient
             state = 2;
         }else if(autonomous && state == 2){ // Go towards cargo
-            globalFieldAngle = pulling_angle;
+            // globalFieldAngle = pulling_angle;
             goal_pos[0] = cargo_pos[0]; // Set goal position exactly equal to target position
-            uniform_on = 0; // Robot should move towards cargo
-            gradient_on = 1;
+            fVibrate = 1; // Vibrate to let robot move
             if(errorPull < thresh){
                 state = 3;
             }
         }else if(autonomous && state == 3){ // Go towards goal
-            globalFieldAngle = pulling_angle;
+            // globalFieldAngle = pulling_angle;
             goal_pos[0] = getGoalPointCoor(); // Final goal is wherever the mouse clicks
-            uniform_on = 0; // Robot should move towards cargo
-            gradient_on = 1;
+            fVibrate = 1; // Vibrate to let robot move
             if(errorPull < thresh){
                 state = 4;
             }
         }else if(autonomous && state == 4){ // Align to proper orientation
-            globalFieldAngle = goal_orientation; // Align to cargo
-            uniform_on = 1;
-            gradient_on = 0;
+            // globalFieldAngle = goal_orientation; // Align to cargo
+            goal_pos[0][0] = robot_pos[0][0] + cos(cargo_pos[0][2]); // Dummy goal position so that robot orients towards cargo
+            goal_pos[0][1] = robot_pos[0][1] + sin(cargo_pos[0][2]);
+            fVibrate = 0; // No need to vibrate when just aligning to goal pose
             usleep(2000); // Give 2s for the microrobot to orient
             MMCThread = 0; // Break out of while loop
         }else{
@@ -218,15 +216,15 @@ static void * autonomy_thread(void * threadid){
         int_const = 1e-2 * IgainMMC * errorSum; // Integral term
         der_const = 1e-2 * DgainMMC * errorDiff; // Derivative term
 
-        gradientFieldVolt[0] = pull_const * cos(pulling_angle) / (Coilpair_ratio_MA*11.4); // Outer coils
-        gradientFieldVolt[1] = pull_const * cos(pulling_angle) / (Coilpair_ratio_MA*11.4);
-        gradientFieldVolt[2] = pull_const * sin(pulling_angle) / (Coilpair_ratio_MA*20); // Inner coils
-        gradientFieldVolt[3] = pull_const * sin(pulling_angle) / (Coilpair_ratio_MA*20);
+        gradientFieldVolt[0] = (pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*11.4); // Outer coils
+        gradientFieldVolt[1] = (pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*11.4);
+        gradientFieldVolt[2] = (pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*20); // Inner coils
+        gradientFieldVolt[3] = (pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*20);
 
-        uniformFieldVolt[0] = B_strength_MA * cos(globalFieldAngle) / 5.32;         // x-left
-        uniformFieldVolt[1] = B_strength_MA * cos(globalFieldAngle) / 5.32;         // x-right
-        uniformFieldVolt[2] = B_strength_MA * sin(globalFieldAngle) / 5.2;          // y-left
-        uniformFieldVolt[3] = B_strength_MA * sin(globalFieldAngle) / 5.2;          // y-right
+        // uniformFieldVolt[0] = B_strength_MA * cos(globalFieldAngle) / 5.32;         // x-left
+        // uniformFieldVolt[1] = B_strength_MA * cos(globalFieldAngle) / 5.32;         // x-right
+        // uniformFieldVolt[2] = B_strength_MA * sin(globalFieldAngle) / 5.2;          // y-left
+        // uniformFieldVolt[3] = B_strength_MA * sin(globalFieldAngle) / 5.2;          // y-right
 
         // Create walking motion with varying z coil actuation
         presentTime = get_present_time ();
@@ -264,6 +262,18 @@ double get_present_time (void) {
 ////////   MMC functions that run after interacting with GUI  //////
 int setPgain_MMC(float d) { // Set P gain
     PgainMMC = d;
+    return 1;
+}
+
+////////   MMC functions that run after interacting with GUI  //////
+int setIgain_MMC(float d) { // Set I gain
+    IgainMMC = d;
+    return 1;
+}
+
+////////   MMC functions that run after interacting with GUI  //////
+int setDgain_MMC(float d) { // Set D gain
+    DgainMMC = d;
     return 1;
 }
 

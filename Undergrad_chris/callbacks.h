@@ -129,7 +129,9 @@ extern "C" {  //use to fix C++ name mangling problem, when compiling with g++ in
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   ////       MMC project functions  ////
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  void on_Pgain_changed (GtkEditable *editable, gpointer user_data);   // thic changes Proportional control gain, must use correct types
+  void on_Pgain_changed (GtkEditable *editable, gpointer user_data);   // this changes Proportional control gain, must use correct types
+  void on_Igain_changed (GtkEditable *editable, gpointer user_data);   // this changes Integral control gain, must use correct types
+  void on_Dgain_changed (GtkEditable *editable, gpointer user_data);   // this changes Derivative control gain, must use correct types
   void on_startMMC_clicked (GtkWidget *widget, gpointer data);     // this starts the pulling thread in MMC proj
   void on_stopMMC_clicked (GtkWidget *widget, gpointer data);     // this starts the pulling thread in MMC proj
   void on_HoughBlur_changed (GtkEditable *editable, gpointer user_data);           // To set Blur Marker Size in Hough transform

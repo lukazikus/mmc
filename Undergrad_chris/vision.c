@@ -410,11 +410,12 @@ for(i = 0; i< (contours.size()); i++ )
 }
 
 */
-		if(mouse.x>0)
-			circle( img_m_color, mouse, 4, Scalar(  200, 50, 0), 2, 8, 0 );
+		// if(mouse.x>0)
+		// 	circle( img_m_color, mouse, 4, Scalar(  200, 50, 0), 2, 8, 0 );
 
 		img_m_color_for_display = img_m_color;
-		draw_digital_arena(&img_m_color_for_display); // Draw arena
+		// draw_digital_arena(&img_m_color_for_display); // Draw arena
+		draw_goal(&img_m_color_for_display);
 
 
 		//  Needed for Frame rate calculation of Top camera (xy)
@@ -707,6 +708,9 @@ static void draw_digital_arena (Mat* data ) {
     line      ( *data, Point(  0,427), Point(639,427), Scalar(255,0,0) );
 }
 
+static void draw_goal(Mat *data){
+	circle(*data, Point(245,120), 18, Scalar(200, 0, 50), 2, 8, 0 );
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // OpenCV Static Functions   --- Tianqi

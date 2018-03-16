@@ -20,6 +20,8 @@ int undergrad_set_x_gradient(float d);
 int undergrad_set_y_gradient(float d);
 
 int setPgain_MMC(float d);                          // Pgain assignment function
+int setIgain_MMC(float d);                          // Igain assignment function
+int setDgain_MMC(float d);                          // Dgain assignment function
 int on_startMMC_Thread (void);                // starts MMC main function
 int on_stopMMC_Thread (void);                  // stops MMC main function
 float *get_output_signals(void);                // Function for giving output signals to actuation
