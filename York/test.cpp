@@ -4,9 +4,10 @@
 #include <vector>
 #include <iostream>
 #include <string.h>
+#include "general_header.hpp"
 
 
-//~/Desktop/Undergraduate_Thesis/York$ g++ `pkg-config --cflags opencv` -o test test.cpp `pkg-config --libs opencv`
+//~/Desktop/Undergraduate_Thesis/York$ g++ `pkg-config --cflags gtk+-3.0` `pkg-config --cflags opencv` -o test test.cpp `pkg-config --libs opencv` `pkg-config --libs gtk+-3.0`
 //~/Desktop/Undergraduate_Thesis/York$ ./test
 
 using namespace std;
@@ -18,11 +19,12 @@ bool compareContourAreas ( vector<Point> contour1, vector<Point> contour2 ) {
     return ( i < j );
 }
 
+
 int main(){
 
   // Create a VideoCapture object and open the input file
   // If the input is the web camera, pass 0 instead of the video file name
-  VideoCapture cap("test.mp4");
+  VideoCapture cap("test2.mp4");
   if(!cap.isOpened()){
     cout << "Error opening video stream or file" << endl;
     return -1;
@@ -34,6 +36,7 @@ int main(){
     Mat ir;
     Mat er;
     Mat mask;
+    Mat binaryImg;
     vector<vector<Point> > cnts;
     cap >> frame;
     if (frame.empty())
@@ -52,51 +55,52 @@ int main(){
         for( int i = 0; i < cnts.size(); i++ ){
             output[i] = minAreaRect(cnts[i]);
         }
-        float r_angle=-output[0].angle;
+
+        float r_angle;
         float r_x=output[0].center.x;
         float r_y=output[0].center.y;
         float r_w=output[0].size.width;
         float r_h=output[0].size.height;
 
-        if (r_w*r_h<3500){
-            //Robot Detection
-            drawContours(frame,cnts,0,Scalar(0,0,255),2);
+        //get robot angle___________________________________________________________________________
+        threshold ( frame, binaryImg, 65, 255, THRESH_BINARY_INV );
+        float tempAngle = output[0].angle;          // get angle of rotated rect
+        int checkPt[8];
+        //printf("angle: %.3f, width: %.3f, height: %.3f\n", tempAngle, width, height);
+        checkPt[0] = r_x - 0.4 * r_w  * cosd(tempAngle);
+        checkPt[1] = r_y - 0.4 * r_h * sind(tempAngle);
+        checkPt[2] = r_x + 0.4 * r_h * sind(tempAngle);
+        checkPt[3] = r_y - 0.4 * r_h * cosd(tempAngle);
+        checkPt[4] = r_x + 0.4 * r_w  * cosd(tempAngle);
+        checkPt[5] = r_y + 0.4 * r_h * sind(tempAngle);
+        checkPt[6] = r_x - 0.4 * r_w  * sind(tempAngle);
+        checkPt[7] = r_y + 0.4 * r_h * cosd(tempAngle);
+        //printf("binary image channel %d depth %d\n", binaryImg.channels(), binaryImg.depth());
+        //printf("pt1 %d pt2 %d pt3 %d pt4 %d\n", binaryImg.at<unsigned char>(checkPt[1],checkPt[0]),
+        //                                        binaryImg.at<unsigned char>(checkPt[3],checkPt[2]),
+        //                                        binaryImg.at<unsigned char>(checkPt[5],checkPt[4]),
+        //                                        binaryImg.at<unsigned char>(checkPt[7],checkPt[6]));
 
-            if(r_w<r_h){
-                r_angle=r_angle+90;
-            } else {
-                r_angle=r_angle;
-            }
+        int iDir = -1;
+        if (binaryImg.at<unsigned char>(checkPt[1],checkPt[0]) == 0){
+            iDir = 0;
+            r_angle=output[0].angle+180;}
+        else if (binaryImg.at<unsigned char>(checkPt[3],checkPt[2]) == 0){
+            iDir = 1;
+            r_angle=output[0].angle+270;}
+        else if (binaryImg.at<unsigned char>(checkPt[5],checkPt[4]) == 0){
+            iDir = 2;
+            r_angle=output[0].angle;}
+        else if (binaryImg.at<unsigned char>(checkPt[7],checkPt[6]) == 0){
+            iDir = 3;
+            r_angle=output[0].angle+90;}
+        printf("Fake Angle: %.2f\n",output[0].angle);
+        printf("Robot Angle: %.2f\n",r_angle);
+        //___________________________________________________________________________________
+        // printf("Angle: %.2f\n",r_angle);
+        // printf("X Position: %.2f\n",r_x);
+        // printf("Y Position: %.2f\n",r_y);
 
-            printf("Robot Angle: %.2f\n",r_angle);
-            printf("Robot X Position: %.2f\n",r_x);
-            printf("Robot Y Position: %.2f\n",r_y);
-
-
-            putText(frame,"Robot",Point((int)r_x,(int)r_y),FONT_HERSHEY_SIMPLEX,0.5,255,2);
-            putText(frame,"X:",Point(100,120),FONT_HERSHEY_SIMPLEX,0.5,255,2);
-            putText(frame,"Y:",Point(100,150),FONT_HERSHEY_SIMPLEX,0.5,255,2);
-            putText(frame,"Angle:",Point(100,180),FONT_HERSHEY_SIMPLEX,0.5,255,2);
-
-            //Cargo Detection
-            drawContours(frame,cnts,1,Scalar(0,0,255),2);
-            float c_angle=-output[1].angle;
-            float c_x=output[1].center.x;
-            float c_y=output[1].center.y;
-            float c_w=output[1].size.width;
-            float c_h=output[1].size.height;
-
-            if(c_w<c_h){
-                c_angle=c_angle+90;
-            } else {
-                c_angle=c_angle;
-            }
-
-            printf("Cargo Angle: %.2f\n",c_angle);
-            printf("Cargo X Position: %.2f\n",c_x);
-            printf("Cargo Y Position: %.2f\n",c_y);
-
-        }
     }
     else {
         break;

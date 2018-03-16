@@ -201,7 +201,8 @@ void* visionThread(void*) {
 		int index = 0;
 		unsigned char *inImage;																											// = (unsigned char*)malloc(sizeof(unsigned int)*width*height*depth);
 		Mat img_m, img_m_color, img_m_gray;
-		Mat threshold_output;    																										// for threshold and rectangle detection
+		Mat threshold_output;
+		Mat binaryImg;    																										// for threshold and rectangle detection
 
 		// Time
 		int i;
@@ -243,18 +244,47 @@ void* visionThread(void*) {
 
 				drawContours(img_m_color,cnts,0,Scalar(0,0,255),2);
 
-				float r_angle=-output[0].angle;
-				r_x=output[0].center.x;
-				r_y=output[0].center.y;
+				float r_angle;
+				float r_x=output[0].center.x;
+				float r_y=output[0].center.y;
 				float r_w=output[0].size.width;
 				float r_h=output[0].size.height;
 
-				if(r_w<r_h){
-					r_angle=r_angle+90;
-				} else {
-					r_angle=r_angle;
-				}
+				//get robot angle___________________________________________________________________________
+        		threshold ( frame, binaryImg, 65, 255, THRESH_BINARY_INV );
+				float tempAngle = output[0].angle;          // get angle of rotated rect
+		        int checkPt[8];
+		        //printf("angle: %.3f, width: %.3f, height: %.3f\n", tempAngle, width, height);
+		        checkPt[0] = r_x - 0.4 * r_w  * cosd(tempAngle);
+		        checkPt[1] = r_y - 0.4 * r_h * sind(tempAngle);
+		        checkPt[2] = r_x + 0.4 * r_h * sind(tempAngle);
+		        checkPt[3] = r_y - 0.4 * r_h * cosd(tempAngle);
+		        checkPt[4] = r_x + 0.4 * r_w  * cosd(tempAngle);
+		        checkPt[5] = r_y + 0.4 * r_h * sind(tempAngle);
+		        checkPt[6] = r_x - 0.4 * r_w  * sind(tempAngle);
+		        checkPt[7] = r_y + 0.4 * r_h * cosd(tempAngle);
+		        //printf("binary image channel %d depth %d\n", binaryImg.channels(), binaryImg.depth());
+		        //printf("pt1 %d pt2 %d pt3 %d pt4 %d\n", binaryImg.at<unsigned char>(checkPt[1],checkPt[0]),
+		        //                                        binaryImg.at<unsigned char>(checkPt[3],checkPt[2]),
+		        //                                        binaryImg.at<unsigned char>(checkPt[5],checkPt[4]),
+		        //                                        binaryImg.at<unsigned char>(checkPt[7],checkPt[6]));
 
+		        int iDir = -1;
+		        if (binaryImg.at<unsigned char>(checkPt[1],checkPt[0]) == 0){
+		            iDir = 0;
+		            r_angle==output[0].angle+180;}
+		        else if (binaryImg.at<unsigned char>(checkPt[3],checkPt[2]) == 0){
+		            iDir = 1;
+		            r_angle=output[0].angle+270;}
+		        else if (binaryImg.at<unsigned char>(checkPt[5],checkPt[4]) == 0){
+		            iDir = 2;
+		            r_angle=output[0].angle;}
+		        else if (binaryImg.at<unsigned char>(checkPt[7],checkPt[6]) == 0){
+		            iDir = 3;
+		            r_angle=output[0].angle+90;}
+
+		        printf("Robot Angle: %.2f\n",r_angle);
+				//___________________________________________________________________________________
 				// printf("Angle: %.2f\n",r_angle);
 				// printf("X Position: %.2f\n",r_x);
 				// printf("Y Position: %.2f\n",r_y);
@@ -264,13 +294,10 @@ void* visionThread(void*) {
 				sprintf(x_str, "%f", r_x); sprintf(y_str, "%f", r_y); sprintf(x_str, "%f", r_angle);
 
 				putText(img_m_color,"Cargo",Point((int)r_x,(int)r_y),FONT_HERSHEY_SIMPLEX,0.5,255,2);
-				putText(img_m_color,"X:",Point(100,120),FONT_HERSHEY_SIMPLEX,0.5,255,2);
-				putText(img_m_color,"Y:",Point(100,150),FONT_HERSHEY_SIMPLEX,0.5,255,2);
-				putText(img_m_color,"Angle:",Point(100,180),FONT_HERSHEY_SIMPLEX,0.5,255,2);
+				//putText(img_m_color,"X:",Point(100,120),FONT_HERSHEY_SIMPLEX,0.5,255,2);
+				//putText(img_m_color,"Y:",Point(100,150),FONT_HERSHEY_SIMPLEX,0.5,255,2);
+				//putText(img_m_color,"Angle:",Point(100,180),FONT_HERSHEY_SIMPLEX,0.5,255,2);
 
-				putText(img_m_color,x_str,Point(150,120),FONT_HERSHEY_SIMPLEX,0.5,255,2);
-				putText(img_m_color,y_str,Point(150,150),FONT_HERSHEY_SIMPLEX,0.5,255,2);
-				putText(img_m_color,ang_str,Point(150,180),FONT_HERSHEY_SIMPLEX,0.5,255,2);
 			}else {
 				break;
 			}
