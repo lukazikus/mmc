@@ -3,13 +3,6 @@
 // Function  : Image processing and drawing. initialize camera, receive and display frames, process images
 // Edited by : Jiachen, Zhe
 ////////////////////////////////////////////////////////////////////////////////////////
-#include "opencv2/opencv.hpp"
-#include <iostream>
-#include <stdio.h>
-#include <vector>
-#include <iostream>
-#include <string.h>
-#include "general_header.hpp"
 #include "vision.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -28,6 +21,7 @@ GtkLabel *labelFPSreceive, *labelFPSreceive_xz;
 static Point mouse, mouseC, mouseR;
 static Point mouse_xz, mouseC_xz, mouseR_xz;
 
+// York's parameters
 
 // Chris's global vision parameters
 static Image_JZ presFrame;                                      // present obtained frame
@@ -37,18 +31,17 @@ static Point agentOne(0,0);             						 // first agent center recoreded v
 static Point agentOneMemo(0,0);                      	        // memory of 2 agents, used to avoid switching
 static float r_x = 10;
 static float r_y = 10;
-static float centerPointCoorArray[2]  = {320, 240};
+static float centerPointCoorArray[3]  = {320, 240, 0}; // Current pose of robot
 static float centerPointCoorArray_2[3]  = {320, 140, 0}; // Current pose of cargo
-static int goalPointCoorArray[2]   = {320, 240};
+static float goalPointCoorArray[2]   = {320, 240};
 Point centerP_adjusted, centerP_adjusted_xz;
 Point centerP_adjusted_2;
 
-static float r_angle; //this is the actual robot angle
-static float c_x;
-static float c_y;
-static float c_r;
-
+int visionParam1 = 65; //for processing. Used in threshold() and houghCircle().
+int visionParam2 = 35; //for processing
 static int centerP_dataSafeLock = 0;  // 1: centerP is being changed, wait until it is done
+static float angle1;
+static float angle2;
 
 int binaryThreshold = 90;                   // indicating the level of binary conversion.
 int Hough_Erosion_adj = 0;                  //for processing. Used in houghCircle() indicating the level of erosion conversion.
@@ -59,7 +52,6 @@ int setBlursizeHough = 10;          // set Blur size in Hough transform         
 int cannyLow = 100, cannyHigh = 150; //thresholds for image processing filter
 static int dilater = 1;
 static int edgemap = 0, binary = 0; //are we performing edgemap calculations?
-int visionParam2 = 35; //for processing
 static int flag3dIndicator = 0, flag2dIndicator = 1;
 
 static float fpsReceive; //frames per second of video
@@ -120,9 +112,9 @@ float *get_robot_pose(void){
 	//	printf("TEST1\n");
 	while(centerP_dataSafeLock);                   // wait until change is done
 		centerP_dataSafeLock = 1;
-	    centerPointCoorArray[0] = r_x; // Set to global variables
-	    centerPointCoorArray[1] =  r_y;   // do not forget 480 offset
-		centerPointCoorArray[2] = r_angle; // Set to global angle variable
+	    centerPointCoorArray[0] =  centerP_adjusted.x; // Set to global variables
+	    centerPointCoorArray[1] =  480 - centerP_adjusted.y;   // do not forget 480 offset
+		centerPointCoorArray[2] = angle1; // Set to global angle variable
 		centerP_dataSafeLock = 0;
 		// printf("x= %f, y= %f", centerPointCoorArray[0], centerPointCoorArray[1]);
 
@@ -132,13 +124,21 @@ float *get_robot_pose(void){
 float *get_cargo_pose(void){
 	while(centerP_dataSafeLock);                   // wait until change is done
 		centerP_dataSafeLock = 1;
-		centerPointCoorArray_2[0] =  c_x; // Set to global variables
-		centerPointCoorArray_2[1] =  c_y;   // do not forget 480 offset
-		centerPointCoorArray_2[2] = 0; // Set to global angle variable
+		centerPointCoorArray_2[0] =  centerP_adjusted_2.x; // Set to global variables
+		centerPointCoorArray_2[1] =  480 - centerP_adjusted_2.y;   // do not forget 480 offset
+		centerPointCoorArray_2[2] = angle2; // Set to global angle variable
 		centerP_dataSafeLock = 0;
 		// printf("x= %f, y= %f", centerPointCoorArray[0], centerPointCoorArray[1]);
 
 		return centerPointCoorArray_2;
+}
+
+float* getGoalPointCoor(void){
+    if(mouse.x>0){
+        goalPointCoorArray[0] = (float)mouse.x;
+        goalPointCoorArray[1] = (float)(480 - mouse.y);   // Note the positive y dir.
+    }
+    return goalPointCoorArray;
 }
 
 void initVision(void) {
@@ -161,7 +161,7 @@ void initVision(void) {
 				pthread_create(&vthread_xz, NULL, visionThread_xz, NULL);  //start vision thread
 		}
 
-		// X-Y Camera
+		// X-Z Camera
 		if(topcam_on == 1) {//if we are also using the top cam
 				usleep(2e5);
 				printf("Before cam_xy.initialize_xz().\n");
@@ -214,137 +214,220 @@ void initVision(void) {
 // visionThread --- Camera 1
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void* visionThread(void*) {
-		printf("@ the Beginning of visionThread().\n");
+	printf("@ the Beginning of visionThread().\n");
 
-		int index = 0;
-		unsigned char *inImage;																											// = (unsigned char*)malloc(sizeof(unsigned int)*width*height*depth);
-		Mat frame, img_m_color, img_m_gray;
-		Mat threshold_output;    																										// for threshold and rectangle detection
+	int index = 0;
+	unsigned char *inImage;																											// = (unsigned char*)malloc(sizeof(unsigned int)*width*height*depth);
+	Mat img_m, img_m_color, img_m_gray;
+	vector<Vec3f> circles_m; //for hough circle detection
 
-		// Time
-		int i;
-		timeval tStart, tEnd;
-		float time;
-		double current_time;
-		float fpsVec[10] = {10,10,10,10,10,10,10,10,10,10};
-		int fpsIndex = 0;
-		char x_str[5]; char y_str[5]; char ang_str[5];
+	Mat threshold_output;    // for threshold and rectangle detection
+	vector<vector<Point> > contours; //for threshold and rectangle detection
+	vector<Point> largest_contour;
+	vector<Vec4i> hierarchy; //for threshold and rectangle detection
 
-		while(!killVisionThread) {																						//repeat vision loop until we set killVisionthread=1 using stopVision()
-			gettimeofday(&tStart, NULL);
-			//usleep(6e4); 																													//slow down vision thread; this function watis for a new frame, it takes a long time, so we can do some image processing in this thread
+	int largest_area = 0;
+	int largest_contour_index = 0;
+	Rect bounding_rect;
+	double a;
+	int second_largest_area = 0;
+	int third_largest_area = 0;            // regarded as the first orientation circle in multi-agent
+	int second_largest_contour_index = 0;
+	RotatedRect second_rotated_bounding_rect;
 
-			inImage = cam.grabAframe(); 																						//unsigned char *inImage;
-			if(inImage == NULL)	{
-				g_print("Error in firewire stream! Reattempting...\n");
-				usleep((int)1e3); 																										// I don't know what the wait delay should be
-			}
-			frame = Mat(height, width, CV_8UC1, inImage); 													//convert to Mat format
-		    Mat hsv;
-		    Mat mask;
-		    Mat mask2;
-		    vector<vector<Point> > cnts;
-		    vector<vector<Point> > cnts2;
-		    if (frame.empty())
-		      break;
-		    frame=frame(Rect(0,50,500,400)); //crop the frame
-		    cvtColor(frame,hsv,COLOR_BGR2GRAY);
-		    inRange(hsv,0,60,mask);//lower and upper greyscale threshold for robot
-		    Mat maskfororientation = mask;
-		    erode(mask,mask,Mat(),Point(-1,-1),2);
-		    dilate(mask,mask,Mat(),Point(-1,-1),2);
-			inRange(hsv,80,230,mask2);//lower and upper greyscale threshold for cargot
-		    erode(mask2,mask2,Mat(),Point(-1,-1),2);
-		    dilate(mask2,mask2,Mat(),Point(-1,-1),2);
+	RotatedRect rotated_bounding_rect;
+	Point centerP;
+	Point l_centerP_2;
+																			// for threshold and rectangle detection
+	// Time
+	int i;
+	timeval tStart, tEnd;
+	float time;
+	double current_time;
+	float fpsVec[10] = {10,10,10,10,10,10,10,10,10,10};
+	int fpsIndex = 0;
+	char x_str[5]; char y_str[5]; char ang_str[5];
 
-		    findContours(mask,cnts,RETR_EXTERNAL,CHAIN_APPROX_SIMPLE,Point(0,0));
-			findContours(mask2,cnts2,RETR_EXTERNAL,CHAIN_APPROX_SIMPLE,Point(0,0));
+	while(!killVisionThread) {																						//repeat vision loop until we set killVisionthread=1 using stopVision()
+		gettimeofday(&tStart, NULL);
+		//usleep(6e4); 																													//slow down vision thread; this function watis for a new frame, it takes a long time, so we can do some image processing in this thread
+
+		inImage = cam.grabAframe(); 																						//unsigned char *inImage;
+		if(inImage == NULL)	{
+			g_print("Error in firewire stream! Reattempting...\n");
+			usleep((int)1e3); 																										// I don't know what the wait delay should be
+		}
+		img_m = Mat(height, width, CV_8UC1, inImage); 													//convert to Mat format
+
+/*
+			Mat hsv;
+			Mat mask;
+			vector<vector<Point> > cnts;
+
+			cvtColor(img_m_color,hsv,COLOR_BGR2HSV);
+			inRange(hsv,Scalar(0,0,0),Scalar(60,60,60),mask);
+			findContours(mask,cnts,RETR_EXTERNAL,CHAIN_APPROX_SIMPLE,Point(0,0));
 
 			if ((int)cnts.size()>0){
 				sort(cnts.begin(), cnts.end(),compareContourAreas);
-
-				sort(cnts2.begin(), cnts2.end(),compareContourAreas);
-
 				//printf("size: %d\n", (int)cnts.size());
 				vector<RotatedRect> output(cnts.size());
 
 				for( int i = 0; i < cnts.size(); i++ ){
 					output[i] = minAreaRect(cnts[i]);
 				}
-				float r_x=output[0].center.x;
-				float r_y=output[0].center.y;
+
+				drawContours(img_m_color,cnts,0,Scalar(0,0,255),2);
+
+				float r_angle=-output[0].angle;
+				r_x=output[0].center.x;
+				r_y=output[0].center.y;
 				float r_w=output[0].size.width;
 				float r_h=output[0].size.height;
 
-				drawContours(frame,cnts,0,Scalar(0,0,255),2);
-				putText(frame,"Robot",Point((int)r_x,(int)r_y),FONT_HERSHEY_SIMPLEX,0.5,255,2);
-				Point2f center;
-				float radius;
-				//for( int i = 0; i < cnts2.size(); i++ ){
-				minEnclosingCircle(cnts2[0],center,radius);
-				//}
-				c_x=center.x;
-				c_y=center.y;
-				c_r=radius;
-				circle(frame, Point((int)c_x,(int)c_y), (int)radius, Scalar(0, 255, 0), 2, 8, 0 );
-				putText(frame,"Cargo",Point((int)c_x,(int)c_y),FONT_HERSHEY_SIMPLEX,0.5,255,2);
+				if(r_w<r_h){
+					r_angle=r_angle+90;
+				} else {
+					r_angle=r_angle;
+				}
 
-
-				//get robot angle___________________________________________________________________________
-
-				float tempAngle = output[0].angle;          // get angle of rotated rect
-				int checkPt[8];
-				//printf("angle: %.3f, width: %.3f, height: %.3f\n", tempAngle, width, height);
-				checkPt[0] = r_x - 0.4 * r_w  * cosd(tempAngle);
-				checkPt[1] = r_y - 0.4 * r_h * sind(tempAngle);
-				checkPt[2] = r_x + 0.4 * r_h * sind(tempAngle);
-				checkPt[3] = r_y - 0.4 * r_h * cosd(tempAngle);
-				checkPt[4] = r_x + 0.4 * r_w  * cosd(tempAngle);
-				checkPt[5] = r_y + 0.4 * r_h * sind(tempAngle);
-				checkPt[6] = r_x - 0.4 * r_w  * sind(tempAngle);
-				checkPt[7] = r_y + 0.4 * r_h * cosd(tempAngle);
-
-				float r_angle; //this is the actual robot angle
-				int iDir = -1;
-				if (maskfororientation.at<unsigned char>(checkPt[1],checkPt[0]) == 0){
-					iDir = 0;
-					r_angle=output[0].angle+180;}
-				else if (maskfororientation.at<unsigned char>(checkPt[3],checkPt[2]) == 0){
-					iDir = 1;
-					r_angle=output[0].angle+270;}
-				else if (maskfororientation.at<unsigned char>(checkPt[5],checkPt[4]) == 0){
-					iDir = 2;
-					r_angle=output[0].angle+360;}
-				else if (maskfororientation.at<unsigned char>(checkPt[7],checkPt[6]) == 0){
-					iDir = 3;
-					r_angle=output[0].angle+90;}
-				circle(frame, Point(checkPt[iDir*2], checkPt[iDir*2+1]), 5, Scalar(255,0,0));
-				printf("Robot Angle: %.2f\n",r_angle);
-				//___________________________________________________________________________________
 				// printf("Angle: %.2f\n",r_angle);
 				// printf("X Position: %.2f\n",r_x);
 				// printf("Y Position: %.2f\n",r_y);
-			}
-			else {
+
+
+			//	circle( img_m_color, Point((int)r_x,(int)r_y), 4, Scalar(  200, 50, 0), 2, 8, 0 );
+				sprintf(x_str, "%f", r_x); sprintf(y_str, "%f", r_y); sprintf(x_str, "%f", r_angle);
+
+				putText(img_m_color,"Cargo",Point((int)r_x,(int)r_y),FONT_HERSHEY_SIMPLEX,0.5,255,2);
+				putText(img_m_color,"X:",Point(100,120),FONT_HERSHEY_SIMPLEX,0.5,255,2);
+				putText(img_m_color,"Y:",Point(100,150),FONT_HERSHEY_SIMPLEX,0.5,255,2);
+				putText(img_m_color,"Angle:",Point(100,180),FONT_HERSHEY_SIMPLEX,0.5,255,2);
+
+				putText(img_m_color,x_str,Point(150,120),FONT_HERSHEY_SIMPLEX,0.5,255,2);
+				putText(img_m_color,y_str,Point(150,150),FONT_HERSHEY_SIMPLEX,0.5,255,2);
+				putText(img_m_color,ang_str,Point(150,180),FONT_HERSHEY_SIMPLEX,0.5,255,2);
+			}else {
 				break;
 			}
 
-				//draw mouse clicks:
-				if(mouse.x>0)
-					circle( img_m_color, mouse, 4, Scalar(  200, 50, 0), 2, 8, 0 );
 
-				img_m_color_for_display = img_m_color;
 
-				//  Needed for Frame rate calculation of Top camera (xy)
-				gettimeofday(&tEnd, NULL);
-				current_time = ((double)tEnd.tv_sec + (double)tEnd.tv_usec*1e-6) ;
-				time = (int)round( (((double)tEnd.tv_sec + (double)tEnd.tv_usec*1e-6) - ((double)tStart.tv_sec + (double)tStart.tv_usec*1e-6) )*1000.0);
-				fpsVec[fpsIndex++] = 1000.0/time;
-				if(fpsIndex > 9) fpsIndex = 0;
-				fpsReceive = 0;
-				for(int i = 0; i < 10; i++)
-				fpsReceive += fpsVec[i];
-				fpsReceive /= 10.0;
+*/
+	blur( img_m, threshold_output, Size(4,4) ); //blur image to remove small blips etc
+	threshold( threshold_output, threshold_output, visionParam1, 255, THRESH_BINARY_INV );
+
+
+	//cvtColor(threshold_output, img_m_color, CV_GRAY2BGR); //convert to color
+	findContours( threshold_output, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0) ); //find contours
+
+	vector<vector<Point> > contours_poly( contours.size() );
+	vector<Rect> boundRect( contours.size() );
+	//
+	vector<RotatedRect> minRect( contours.size() );
+	//
+	vector<Point2f>center( contours.size() );
+	vector<float>radius( contours.size() );
+
+	//printf("contours size is %d.\n", contours.size());
+
+	if (contours.size() >= 1)   // if the camera detects rectangle ... sometimes the view is all white, no rectangles are detected
+	{
+		for( i = 0; i < contours.size(); i++ )
+	   {
+			//
+			minRect[i] = minAreaRect( Mat(contours[i]) );
+			//
+			approxPolyDP( Mat(contours[i]), contours_poly[i], 3, true );
+			boundRect[i] = boundingRect( Mat(contours_poly[i]) );
+	   }
+
+		//first, find the largest contour    ...   Contour classification!
+		largest_area = 0;
+
+		for(i = 0; i< (contours.size()); i++ )
+		{
+			a = contourArea(contours[i], false);           //  Find the area of contour
+			if(a > largest_area)                           // if current contour is bigger ...
+			{
+				largest_area = a;
+				largest_contour_index = i;                 //Store the index of largest contour
+			}
+		}
+		bounding_rect = boundingRect( contours[largest_contour_index] );                                       // Find the bounding rectangle for biggest contour
+		//printf("Marker 5.\n");
+
+		centerP = Point( bounding_rect.x + bounding_rect.width/2, bounding_rect.y + bounding_rect.height/2 );  // Center point of the bounding rectangle
+
+		while (centerP_dataSafeLock);   // wait until reading is done
+		centerP_dataSafeLock = 1;
+		centerP_adjusted = Point( bounding_rect.x + bounding_rect.width/2, (bounding_rect.y + bounding_rect.height/2) );  // Center point of the bounding rectangle. note the positive y dir.
+		centerP_dataSafeLock = 0;
+
+		rotated_bounding_rect = minAreaRect( Mat( contours[largest_contour_index] ) );
+		angle1=rotated_bounding_rect.angle;//angle 1 is the angle of the robot
+		/*if (bounding_rect.width<bounding_rect.height){
+			angle1=0-angle1+M_PI_2;
+		} else {
+			angle1=0-angle1;
+		}
+		*/
+		// printf("Robot Pose: (%d, %d, %f): \n",centerP_adjusted.x, centerP_adjusted.y, angle1);
+	}
+
+	cvtColor(img_m, img_m_color, CV_GRAY2BGR); //convert to color anyways
+	circle(img_m_color, centerP_adjusted, 40, Scalar(0, 50, 200), 2, 8, 0 );
+
+	/////   this is for the case there are two separate objects
+	if (contours.size() >= 2){
+		second_largest_area = 0;
+		for(i = 0; i< (contours.size()); i++)
+		{
+			a = contourArea(contours[i], false);  //  Find the area of contour
+			if ( (a > second_largest_area) && (a < largest_area) )
+			{
+				second_largest_area = a;
+				second_largest_contour_index = i;                 //Store the index of largest contour
+				bounding_rect = boundingRect(contours[i]); // Find the bounding rectangle for biggest contour
+				l_centerP_2        = Point( bounding_rect.x + bounding_rect.width/2, bounding_rect.y + bounding_rect.height/2 );  // Center point of the bounding rectangle
+				centerP_adjusted_2 = Point( bounding_rect.x + bounding_rect.width/2, (bounding_rect.y + bounding_rect.height/2) );  // Center point of the bounding rectangle. note the positive y dir.
+				second_rotated_bounding_rect = minAreaRect( Mat(contours[i]) );
+				angle2=second_rotated_bounding_rect.angle;//angle2 is the angle of the cargo
+				// printf("Cargo Pose: (%d, %d, %f): \n",centerP_adjusted_2.x, centerP_adjusted_2.y, angle2);
+			}
+		}
+		circle( img_m_color, centerP_adjusted_2, 40, Scalar(0, 200, 50), 2, 8, 0 );
+	}
+
+/////////////////////////////////////////////////////////
+/*
+for(i = 0; i< (contours.size()); i++ )
+{
+//	continue; //don't draw any rects
+	Scalar color = Scalar( (int)i*254/(contours.size()+1),255- (int)i*254/(contours.size()+1), (int)i*254/(contours.size()+1) );
+   drawContours( img_m_color, contours_poly, i, color, 1, 8, vector<Vec4i>(), 0, Point() );
+	//rectangle( img_m_color, boundRect[i].tl(), boundRect[i].br(), color, 2, 8, 0 ); //Commented out by Patrick Feb 27
+}
+
+*/
+		// if(mouse.x>0)
+		// 	circle( img_m_color, mouse, 4, Scalar(  200, 50, 0), 2, 8, 0 );
+
+		img_m_color_for_display = img_m_color;
+		// draw_digital_arena(&img_m_color_for_display); // Draw arena
+		draw_goal(&img_m_color_for_display);
+
+
+		//  Needed for Frame rate calculation of Top camera (xy)
+		gettimeofday(&tEnd, NULL);
+		current_time = ((double)tEnd.tv_sec + (double)tEnd.tv_usec*1e-6) ;
+		time = (int)round( (((double)tEnd.tv_sec + (double)tEnd.tv_usec*1e-6) - ((double)tStart.tv_sec + (double)tStart.tv_usec*1e-6) )*1000.0);
+		fpsVec[fpsIndex++] = 1000.0/time;
+		if(fpsIndex > 9) fpsIndex = 0;
+		fpsReceive = 0;
+		for(int i = 0; i < 10; i++)
+		fpsReceive += fpsVec[i];
+		fpsReceive /= 10.0;
 		}																																						//end vision loop due to killVisionthread==1
 		cam.stopGrabbingVideo();
 		usleep ((int)1e5); //make sure that ImageProc_xz has closed
@@ -380,43 +463,43 @@ void* visionThread_xz(void*) {
 		bool contour_number = false; // whether the number of contours is greater than 2 ?
 
 		while(!killVisionThread) {																											    //repeat vision loop until we set killVisionthread = 1 using stopVision()
-				gettimeofday(&tStart_xz, NULL);
-				//usleep(6e4); 																																	//slow down vision thread
+			gettimeofday(&tStart_xz, NULL);
+			//usleep(6e4); 																																	//slow down vision thread
 
-				inImage_xz = cam_xz.grabAframe_xz(); 																						//unsigned char *inImage;
-				if(inImage_xz == NULL) {
-						g_print("Error in firewire stream xz! Reattempting...\n");
-						usleep((int)1e3); 																													// I don't know what the wait delay should be
+			inImage_xz = cam_xz.grabAframe_xz(); 																						//unsigned char *inImage;
+			if(inImage_xz == NULL) {
+					g_print("Error in firewire stream xz! Reattempting...\n");
+					usleep((int)1e3); 																													// I don't know what the wait delay should be
+			}
+
+			img_m_xz = Mat(height, width, CV_8UC1, inImage_xz); 														//convert to Mat format
+
+			// opencv image processing
+			if(edgemap_xz == 1) {img_m_xz = opencv_edgemap (img_m_xz.clone(), cannyLow_xz, cannyHigh_xz, dilater_xz);}
+			if(binary_xz == 1) {img_m_xz = opencv_binary (img_m_xz.clone(), binaryThreshold_xz);}
+			cvtColor(img_m_xz, img_m_color_xz, CV_GRAY2BGR); 				//convert to color
+
+			// draw field indicator
+			if (flag2dIndicatorXZ == 1) {draw_xz_magnetic_field(img_m_color_xz,580,400);}
+			if (flag3dIndicatorXZ == 1) {
+				if (currentActiveTabIndex == 1) {
+					draw_3d_magnetic_field_twisted(img_m_color_xz,480,400);
+				}else{
+					draw_3d_magnetic_field(img_m_color_xz,480,400);
 				}
+			}
 
-				img_m_xz = Mat(height, width, CV_8UC1, inImage_xz); 														//convert to Mat format
+			img_m_color_for_display2 = img_m_color_xz;
 
-				// opencv image processing
-				if(edgemap_xz == 1) {img_m_xz = opencv_edgemap (img_m_xz.clone(), cannyLow_xz, cannyHigh_xz, dilater_xz);}
-				if(binary_xz == 1) {img_m_xz = opencv_binary (img_m_xz.clone(), binaryThreshold_xz);}
-				cvtColor(img_m_xz, img_m_color_xz, CV_GRAY2BGR); 				//convert to color
-
-				// draw field indicator
-				if (flag2dIndicatorXZ == 1) {draw_xz_magnetic_field(img_m_color_xz,580,400);}
-				if (flag3dIndicatorXZ == 1) {
-					if (currentActiveTabIndex == 1) {
-						draw_3d_magnetic_field_twisted(img_m_color_xz,480,400);
-					}else{
-						draw_3d_magnetic_field(img_m_color_xz,480,400);
-					}
-				}
-
-				img_m_color_for_display2 = img_m_color_xz;
-
-				gettimeofday(&tEnd_xz, NULL);
-				current_time_xz = ((double)tEnd_xz.tv_sec + (double)tEnd_xz.tv_usec*1e-6) ;
-				time_xz = (int)round( (((double)tEnd_xz.tv_sec + (double)tEnd_xz.tv_usec*1e-6) - ((double)tStart_xz.tv_sec + (double)tStart_xz.tv_usec*1e-6) )*1000.0);
-				fpsVec_xz[fpsIndex_xz++] = 1000.0/time_xz;
-				if(fpsIndex_xz > 9) fpsIndex_xz = 0;
-				fpsReceive_xz = 0;
-				for(int i = 0; i < 10; i++)
-				fpsReceive_xz += fpsVec_xz[i];
-				fpsReceive_xz /= 10.0;
+			gettimeofday(&tEnd_xz, NULL);
+			current_time_xz = ((double)tEnd_xz.tv_sec + (double)tEnd_xz.tv_usec*1e-6) ;
+			time_xz = (int)round( (((double)tEnd_xz.tv_sec + (double)tEnd_xz.tv_usec*1e-6) - ((double)tStart_xz.tv_sec + (double)tStart_xz.tv_usec*1e-6) )*1000.0);
+			fpsVec_xz[fpsIndex_xz++] = 1000.0/time_xz;
+			if(fpsIndex_xz > 9) fpsIndex_xz = 0;
+			fpsReceive_xz = 0;
+			for(int i = 0; i < 10; i++)
+			fpsReceive_xz += fpsVec_xz[i];
+			fpsReceive_xz /= 10.0;
 		}																																												//end vision loop due to killVisionthread==1
 		cam_xz.stopGrabbingVideo_xz();
 		usleep ((int)1e5); 																																			//make sure that ImageProc_xz has closed
@@ -605,18 +688,29 @@ void setMouse(int whichScreen, int whichMouse, int mouseClick[2] ) //click in pi
 }
 
 // Chris's function to add digital arena
-static void draw_digital_arena(Mat img, float wall_width, float wall_length, float bound_length, float bound_gap){
-	line(img, Point(0,0), Point(wall_length,0), Scalar(255,0,0), 5); // Top wall
-	line(img, Point(0,wall_width), Point(wall_length,wall_width), Scalar(255,0,0), 5); // Bottom wall
-	line(img, Point(0,0), Point(0,wall_width), Scalar(255,0,0), 5); // Left wall
-	line(img, Point(wall_length,0), Point(wall_length,wall_width), Scalar(255,0,0), 5); // Right wall
+// static void draw_digital_arena(Mat img, float wall_width, float wall_length, float bound_length, float bound_gap){
+// 	line(img, Point(0,0), Point(wall_length,0), Scalar(255,0,0), 5); // Top wall
+// 	line(img, Point(0,wall_width), Point(wall_length,wall_width), Scalar(255,0,0), 5); // Bottom wall
+// 	line(img, Point(0,0), Point(0,wall_width), Scalar(255,0,0), 5); // Left wall
+// 	line(img, Point(wall_length,0), Point(wall_length,wall_width), Scalar(255,0,0), 5); // Right wall
+//
+// 	line(img, Point(wall_length/2,0), Point(wall_length/2,bound_length), Scalar(255,0,0), 5);
+// 	line(img, Point(wall_length/2,bound_length+bound_gap), Point(wall_length/2,2*bound_length+bound_gap), Scalar(255,0,0), 5);
+// }
 
-	line(img, Point(wall_length/2,0), Point(wall_length/2,bound_length), Scalar(255,0,0), 5);
-	line(img, Point(wall_length/2,bound_length+bound_gap), Point(wall_length/2,2*bound_length+bound_gap), Scalar(255,0,0), 5);
+// Jiachen's function to add digital arena
+static void draw_digital_arena (Mat* data ) {
+    /* inner top-left corner @ (7, 61), 5.6 um/pixel */
+    rectangle ( *data, Point(  7, 61), Point(632,418), Scalar(255,0,0) );     // length: 3.5 mm (625 pixels), height: 2 mm (357 pixel)
+    rectangle ( *data, Point(311, 61), Point(320,106), Scalar(255,0,0) );     // length: 50 um; height: 250 um
+    rectangle ( *data, Point(311,177), Point(320,240), Scalar(255,0,0) );     // length: 50 um; height: 350 um
+    line      ( *data, Point(  0, 52), Point(639, 52), Scalar(255,0,0) );
+    line      ( *data, Point(  0,427), Point(639,427), Scalar(255,0,0) );
 }
 
-// York's function to detect x,y coordinates
-
+static void draw_goal(Mat *data){
+	circle(*data, Point(245,120), 18, Scalar(200, 0, 50), 2, 8, 0 );
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // OpenCV Static Functions   --- Tianqi
