@@ -5,6 +5,8 @@
 #include <iostream>
 #include <string.h>
 #include "general_header.hpp"
+#include "NETUSBCAM_API.h"
+#include "ICubeDefines.h"
 
 
 //~/Desktop/Undergraduate_Thesis/York$ g++ `pkg-config --cflags gtk+-3.0` `pkg-config --cflags opencv` -o test test.cpp `pkg-config --libs opencv` `pkg-config --libs gtk+-3.0`
@@ -24,7 +26,14 @@ int main(){
 
   // Create a VideoCapture object and open the input file
   // If the input is the web camera, pass 0 instead of the video file name
-  VideoCapture cap("test2.mp4");
+
+  NETUSBCAM_Init();
+  NETUSBCAM_Open(0);
+  NETUSBCAM_SetCamParameter(0,REG_PLL,20);
+  NETUSBCAM_SetCamParameter(0,REG_CALLBACK_BR_FRAMES,1);
+  NETUSBCAM_SetCallback(0,CALLBACK_RGB,&GetImage,NULL);
+  NETUSBCAM_Start(0);	
+  VideoCapture cap(0);
   if(!cap.isOpened()){
     cout << "Error opening video stream or file" << endl;
     return -1;
@@ -42,9 +51,10 @@ int main(){
     cap >> frame;
     if (frame.empty())
       break;
-    frame=frame(Rect(0,50,500,400)); //crop the frame
+    frame=frame(Rect(50,40,580,300)); //crop the frame
     cvtColor(frame,hsv,COLOR_BGR2GRAY);
     inRange(hsv,0,60,mask);
+    imshow( "hsv", mask);
     Mat maskfororientation = mask;
     erode(mask,mask,Mat(),Point(-1,-1),2);
     dilate(mask,mask,Mat(),Point(-1,-1),2);
@@ -137,7 +147,7 @@ int main(){
     if(c==27)
       break;
   }
-
+  NETUSBCAM_Stop(0);
   cap.release();
   destroyAllWindows();
 
