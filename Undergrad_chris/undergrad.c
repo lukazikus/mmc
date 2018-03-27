@@ -148,12 +148,14 @@ static void * autonomy_thread(void * threadid){
     double goalMouse_MAx=0;
     double goalMouse_MAy=0;
     float norm = 0.0;
-
     float periodTime = 1.0 / freq;  // time per period
 
     double startTime = 0, presentTime = 0, timeElapsed = 0; // Time variables
     startTime = get_present_time ();
     float outputVZ = 0; // Output z axis voltage
+
+    // Set up occupancy grid
+
 
     // RUNNING
     while ( MMCThread ) {
@@ -228,7 +230,6 @@ static void * autonomy_thread(void * threadid){
 
         // Create walking motion with varying z coil actuation
         presentTime = get_present_time ();
-
         timeElapsed = presentTime - startTime;
         if(timeElapsed >= periodTime){
             timeElapsed = timeElapsed - periodTime*(int)((presentTime - startTime)/periodTime); // Bring timeElapsed into period range
