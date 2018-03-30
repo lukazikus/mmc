@@ -112,8 +112,11 @@ float *get_robot_pose(void){
 	//	printf("TEST1\n");
 	while(centerP_dataSafeLock);                   // wait until change is done
 		centerP_dataSafeLock = 1;
-	    centerPointCoorArray[0] =  centerP_adjusted.x; // Set to global variables
-	    centerPointCoorArray[1] =  480 - centerP_adjusted.y;   // do not forget 480 offset
+	    // centerPointCoorArray[0] =  centerP_adjusted.x; // Set to global variables  UNCOMMENT
+	    // centerPointCoorArray[1] =  480 - centerP_adjusted.y;   // do not forget 480 offset UNCOMMENT
+		centerPointCoorArray[0] = 520; // Test x coordinate
+		centerPointCoorArray[1] = 100; // Test y coordinate
+
 		centerPointCoorArray[2] = angle1; // Set to global angle variable
 		centerP_dataSafeLock = 0;
 		// printf("x= %f, y= %f", centerPointCoorArray[0], centerPointCoorArray[1]);
@@ -124,8 +127,11 @@ float *get_robot_pose(void){
 float *get_cargo_pose(void){
 	while(centerP_dataSafeLock);                   // wait until change is done
 		centerP_dataSafeLock = 1;
-		centerPointCoorArray_2[0] =  centerP_adjusted_2.x; // Set to global variables
-		centerPointCoorArray_2[1] =  480 - centerP_adjusted_2.y;   // do not forget 480 offset
+		// centerPointCoorArray_2[0] =  centerP_adjusted_2.x; // Set to global variables
+		// centerPointCoorArray_2[1] =  480 - centerP_adjusted_2.y;   // do not forget 480 offset
+		centerPointCoorArray_2[0] = 520; // Test x coordinate
+		centerPointCoorArray_2[1] = 150; // Test y coordinate
+
 		centerPointCoorArray_2[2] = angle2; // Set to global angle variable
 		centerP_dataSafeLock = 0;
 		// printf("x= %f, y= %f", centerPointCoorArray[0], centerPointCoorArray[1]);

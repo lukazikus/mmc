@@ -1,5 +1,7 @@
 #ifndef UNDERGRAD
 #define UNDERGRAD
+#define WIDTH 480 // Width of occupancy grid
+#define LENGTH 640 // Length of occupancy grid
 
 #include "math_subroutine.h"
 #include <gtk/gtk.h>
@@ -8,7 +10,9 @@
 #include <pthread.h>
 #include "Amplifier.h"
 #include "vision.h"
+#include "astar.h"
 #include <math.h>
+#include <bits/stdc++.h>
 
 #define tand(x) (tan(fmod((x),360) * M_PI / 180)) // From actuation.hpp
 

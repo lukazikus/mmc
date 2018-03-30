@@ -1,8 +1,8 @@
 #include<bits/stdc++.h>
 using namespace std;
 
-#define ROW 48
-#define COL 48
+#define ROW 480
+#define COL 640
 #define SCALE 3.0
 #define GRID_WIDTH 0.36
 #define VEL 0.2
