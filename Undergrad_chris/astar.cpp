@@ -1,3 +1,7 @@
+/* Reference:
+https://stackoverflow.com/questions/19193413/pathfinding-in-a-grid-system
+*/
+
 #include <bits/stdc++.h>
 #include "astar.h"
 using namespace std;
@@ -8,7 +12,7 @@ bool isValid(int row, int col){
 }
 
 // A Utility Function to check whether the given cell is blocked or not
-bool isUnBlocked(int grid[][COL], int row, int col){
+bool isUnBlocked(int** grid, int row, int col){
     return grid[row][col] == 1 ? true : false;
 }
 
@@ -23,7 +27,7 @@ double calculateHValue(int row, int col, Pair dest){
     return (double)(abs(row-dest.first) + abs(col-dest.second));
 }
 
-stack<Pair> path(cell cellDetails[][COL], Pair dest){
+stack<Pair> path(cell** cellDetails, Pair dest){
     int row = dest.first;
     int col = dest.second;
 
@@ -51,7 +55,7 @@ void tracePath(stack<Pair> Path){
     printf("\n");
 }
 
-bool searchSuccessor(cell cellDetails[][COL], bool closedList[][COL], int grid[][COL], set<pPair> &openList, int i, int j, int k, int l, Pair dest, stack<Pair> &Path){
+bool searchSuccessor(cell** cellDetails, bool closedList[][COL], int** grid, set<pPair> &openList, int i, int j, int k, int l, Pair dest, stack<Pair> &Path){
     // To store the 'g', 'h' and 'f' of the 8 successors
     double gNew, hNew, fNew;
 
@@ -90,7 +94,7 @@ bool searchSuccessor(cell cellDetails[][COL], bool closedList[][COL], int grid[]
     return false;
 }
 
-void printMap(int grid[][COL]){
+void printMap(int** grid){
     for(int i = 0; i < ROW; i++){
         for(int j = 0; j < COL; j++){
             printf("%d,", grid[i][j]);
@@ -129,7 +133,7 @@ int world_to_map(float world_coord){
 }
 
 // A* Function to find the shortest path between a given source cell to a destination cell
-void aStarSearch(int grid[][COL], Pair src, Pair dest, stack<Pair> &Path){
+void aStarSearch(int** &grid, Pair src, Pair dest, stack<Pair> &Path){
     printf("REACHED\n");
     // If the source is out of range
     if (isValid (src.first, src.second) == false){
@@ -158,7 +162,18 @@ void aStarSearch(int grid[][COL], Pair src, Pair dest, stack<Pair> &Path){
     // Create a closed list and initialise it to false which means that no cell has been included yet
     bool closedList[ROW][COL];
     memset(closedList, false, sizeof (closedList));
-    cell cellDetails[ROW][COL]; // Declare a 2D array of structs to hold the details of each grid cell
+    // cell cellDetails[ROW][COL]; // Declare a 2D array of structs to hold the details of each grid cell
+
+    cell** cellDetails = new cell*[ROW];
+    for(int i=0; i<ROW; ++i){
+        cellDetails[i] = new cell[COL];
+    }
+
+    // int** occ_grid = new int*[ROW];
+    // for(int i = 0; i < ROW; ++i){
+    //     occ_grid[i] = new int[COL];
+    // }
+
 
     // Set each cost node to the maximum float value
     int i = 0; int j = 0;
@@ -281,12 +296,18 @@ int main(){
     convertMap(maze_input, grid, src);
     dest = make_pair(22,25);
 
-    int occ_grid[ROW][COL];
-    for(int i = 0; i < ROW; i++){
-        for(int j = 0; j < COL; j++){
+    int** occ_grid = new int*[ROW];
+    for(int i = 0; i < ROW; ++i){
+        occ_grid[i] = new int[COL];
+    }
+
+    for(int i = 0; i < ROW; ++i){
+        for(int j = 0; j < COL; ++j){
             occ_grid[i][j] = 1;
         }
     }
+
+    // dummy(occ_grid, src, dest, Path);
 
     printf("Source: (%d,%d)\n", src.first,src.second);
     printf("Destination: (%d,%d)\n", dest.first,dest.second);

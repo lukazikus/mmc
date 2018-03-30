@@ -1,4 +1,5 @@
 #include<bits/stdc++.h>
+#include <vector>
 using namespace std;
 
 #define ROW 480
@@ -32,4 +33,4 @@ void convertMap(char[][COL], int[][COL], Pair &);
 float map_to_world(int);
 int world_to_map(float);
 Pair goal(char[][COL], int[][COL], Pair);
-void aStarSearch(int[][COL], Pair, Pair, stack<Pair> &Path);
+void aStarSearch(int** &, Pair, Pair, stack<Pair> &Path);
