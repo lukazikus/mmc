@@ -31,5 +31,6 @@ int on_stopMMC_Thread (void);                  // stops MMC main function
 float *get_output_signals(void);                // Function for giving output signals to actuation
 
 double get_present_time (void);                 // Get present time function
+void create_og(int**, Point [], int);           // Create occupancy grid
 
 #endif

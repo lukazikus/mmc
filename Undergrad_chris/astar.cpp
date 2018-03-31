@@ -222,6 +222,13 @@ void aStarSearch(int** &grid, Pair src, Pair dest, stack<Pair> &Path){
         if(searchSuccessor(cellDetails, closedList, grid, openList, i, j, i+1, j+1, dest, Path)) return;
         if(searchSuccessor(cellDetails, closedList, grid, openList, i, j, i+1, j+1, dest, Path)) return;
     }
+
+    // Free memory allocated for cellDetails
+    for(int i = 0; i < ROW; ++i) {
+        delete [] cellDetails[i];
+    }
+    delete [] cellDetails;
+
     // When destination cell is not found and open list is empty, then we failed to reach the destination cell
     if (foundDest == false)
         printf("Failed to find the Destination Cell\n");
@@ -230,8 +237,8 @@ void aStarSearch(int** &grid, Pair src, Pair dest, stack<Pair> &Path){
 }
 
 // Test above function
-int main(){
-// int astar_main(){
+// int main(){
+int astar_main(){
     /* Description of the Grid-
     1--> The cell is not blocked
     0--> The cell is blocked
@@ -306,8 +313,6 @@ int main(){
             occ_grid[i][j] = 1;
         }
     }
-
-    // dummy(occ_grid, src, dest, Path);
 
     printf("Source: (%d,%d)\n", src.first,src.second);
     printf("Destination: (%d,%d)\n", dest.first,dest.second);
