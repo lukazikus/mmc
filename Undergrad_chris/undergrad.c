@@ -157,7 +157,7 @@ static void * autonomy_thread(void * threadid){
     float outputVZ = 0; // Output z axis voltage
 
     // Path Planning Variables
-    Pair src = 
+    Pair src =
 
     /*Set up occupancy grid to all 0s
 
@@ -187,7 +187,7 @@ static void * autonomy_thread(void * threadid){
 
         if(state == -1){ // Calibration phase, get arena boundary points and occupancy grid
             // TO BE FILLED IN BY COMP VISION
-            src = make_pair()
+            src = make_pair(robot_pos[0][0], robot_pos[0][1]);
             aStarSearch(grid, src, dest, Path); // Run A*
 
             state = 0;

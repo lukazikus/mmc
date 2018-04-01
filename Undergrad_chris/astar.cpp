@@ -50,7 +50,7 @@ void tracePath(stack<Pair> Path){
     while (!Path.empty()){
         Pair p = Path.top();
         Path.pop();
-        printf("-> (%d,%d) ",p.first,p.second);
+        printf("-> (%d,%d) ",p.second,p.first);
     }
     printf("\n");
 }
@@ -134,7 +134,6 @@ int world_to_map(float world_coord){
 
 // A* Function to find the shortest path between a given source cell to a destination cell
 void aStarSearch(int** &grid, Pair src, Pair dest, stack<Pair> &Path){
-    printf("REACHED\n");
     // If the source is out of range
     if (isValid (src.first, src.second) == false){
         printf ("Source is invalid\n");

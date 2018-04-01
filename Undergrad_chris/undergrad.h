@@ -10,11 +10,15 @@
 #include <pthread.h>
 #include "Amplifier.h"
 #include "vision.h"
-#include "astar.h"
+// #include "astar.h"
 #include <math.h>
 #include <bits/stdc++.h>
 
 #define tand(x) (tan(fmod((x),360) * M_PI / 180)) // From actuation.hpp
+extern int draw_x;
+extern int draw_y;
+extern int** occ_grid;
+extern stack<Pair> Path_vision;
 
 int undergrad_keyboard_init_stop(int d);            // toggle the keyboard detection thread
 int undergrad_walk_init_stop (int d);               // toggle the walk thread

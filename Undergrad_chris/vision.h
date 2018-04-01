@@ -12,6 +12,9 @@
 #include <pthread.h>
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
+// #include <bits/stdc++.h>
+// #include <vector>
+#include "astar.h"
 
 #include <sys/time.h>
 #include "FWcamera.h"
@@ -22,6 +25,7 @@
 #include <math.h>
 
 using namespace cv;
+using namespace std;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Global Variables
@@ -36,6 +40,8 @@ extern float theta, beta, omega, phi;
 extern GtkImage  *videoWindow, *videoWindow2;
 
 extern Point centerP;
+extern Mat img_m_color_for_display;
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Functions
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -98,6 +104,9 @@ static void draw_3d_magnetic_field (Mat,float,float);
 static void draw_3d_magnetic_field_twisted (Mat,float,float);
 // static void draw_digital_arena (Mat, float, float, float, float);
 static void draw_digital_arena (Mat*);
-static void draw_goal(Mat*);
+void draw_goal(Mat*);
+void draw_circle(Mat*, int, int);
+void draw_occ_grid(Mat*, int** &);
+void draw_path(Mat*, stack<Pair>);
 
 #endif

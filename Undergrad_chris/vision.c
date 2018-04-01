@@ -4,6 +4,7 @@
 // Edited by : Jiachen, Zhe
 ////////////////////////////////////////////////////////////////////////////////////////
 #include "vision.h"
+#include "undergrad.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Variables
@@ -112,10 +113,11 @@ float *get_robot_pose(void){
 	//	printf("TEST1\n");
 	while(centerP_dataSafeLock);                   // wait until change is done
 		centerP_dataSafeLock = 1;
-	    // centerPointCoorArray[0] =  centerP_adjusted.x; // Set to global variables  UNCOMMENT
+	    centerPointCoorArray[0] =  centerP_adjusted.x; // Set to global variables  UNCOMMENT
 	    // centerPointCoorArray[1] =  480 - centerP_adjusted.y;   // do not forget 480 offset UNCOMMENT
-		centerPointCoorArray[0] = 520; // Test x coordinate
-		centerPointCoorArray[1] = 100; // Test y coordinate
+		centerPointCoorArray[1] =  centerP_adjusted.y;
+		// centerPointCoorArray[0] = 520; // Test x coordinate
+		// centerPointCoorArray[1] = 100; // Test y coordinate
 
 		centerPointCoorArray[2] = angle1; // Set to global angle variable
 		centerP_dataSafeLock = 0;
@@ -127,12 +129,15 @@ float *get_robot_pose(void){
 float *get_cargo_pose(void){
 	while(centerP_dataSafeLock);                   // wait until change is done
 		centerP_dataSafeLock = 1;
-		// centerPointCoorArray_2[0] =  centerP_adjusted_2.x; // Set to global variables
+		centerPointCoorArray_2[0] =  centerP_adjusted_2.x; // Set to global variables
 		// centerPointCoorArray_2[1] =  480 - centerP_adjusted_2.y;   // do not forget 480 offset
-		centerPointCoorArray_2[0] = 520; // Test x coordinate
-		centerPointCoorArray_2[1] = 150; // Test y coordinate
+		centerPointCoorArray_2[1] = centerP_adjusted_2.y;   // do not forget 480 offset
 
-		centerPointCoorArray_2[2] = angle2; // Set to global angle variable
+		// // centerPointCoorArray_2[0] = 550; // Test x coordinate
+		// centerPointCoorArray_2[1] = 150; // Test y coordinate
+
+		centerPointCoorArray_2[2] = 0;
+		// centerPointCoorArray_2[2] = angle2; // Eventually use for CV
 		centerP_dataSafeLock = 0;
 		// printf("x= %f, y= %f", centerPointCoorArray[0], centerPointCoorArray[1]);
 
@@ -254,6 +259,16 @@ void* visionThread(void*) {
 	int fpsIndex = 0;
 	char x_str[5]; char y_str[5]; char ang_str[5];
 
+	// Initiate occupancy grid with 1s (unoccupied)
+	for(int i = 0; i < ROW; ++i){
+	    occ_grid[i] = new int[COL];
+	}
+	for(int i = 0; i < ROW; ++i){
+	    for(int j = 0; j < COL; ++j){
+	        occ_grid[i][j] = 1;
+	    }
+	}
+
 	while(!killVisionThread) {																						//repeat vision loop until we set killVisionthread=1 using stopVision()
 		gettimeofday(&tStart, NULL);
 		//usleep(6e4); 																													//slow down vision thread; this function watis for a new frame, it takes a long time, so we can do some image processing in this thread
@@ -317,12 +332,9 @@ void* visionThread(void*) {
 				break;
 			}
 
-
-
 */
 	blur( img_m, threshold_output, Size(4,4) ); //blur image to remove small blips etc
 	threshold( threshold_output, threshold_output, visionParam1, 255, THRESH_BINARY_INV );
-
 
 	//cvtColor(threshold_output, img_m_color, CV_GRAY2BGR); //convert to color
 	findContours( threshold_output, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0) ); //find contours
@@ -382,7 +394,7 @@ void* visionThread(void*) {
 	}
 
 	cvtColor(img_m, img_m_color, CV_GRAY2BGR); //convert to color anyways
-	circle(img_m_color, centerP_adjusted, 40, Scalar(0, 50, 200), 2, 8, 0 );
+	circle(img_m_color, centerP_adjusted, 40, Scalar(0, 50, 200), 2, 8, 0 ); // Draw blue circle where robot is
 
 	/////   this is for the case there are two separate objects
 	if (contours.size() >= 2){
@@ -402,7 +414,7 @@ void* visionThread(void*) {
 				// printf("Cargo Pose: (%d, %d, %f): \n",centerP_adjusted_2.x, centerP_adjusted_2.y, angle2);
 			}
 		}
-		circle( img_m_color, centerP_adjusted_2, 40, Scalar(0, 200, 50), 2, 8, 0 );
+		circle( img_m_color, centerP_adjusted_2, 40, Scalar(0, 200, 50), 2, 8, 0 ); // Draw green circle where cargo is
 	}
 
 /////////////////////////////////////////////////////////
@@ -419,10 +431,13 @@ for(i = 0; i< (contours.size()); i++ )
 		// if(mouse.x>0)
 		// 	circle( img_m_color, mouse, 4, Scalar(  200, 50, 0), 2, 8, 0 );
 
+// DRAW ARENA AND GOAL
 		img_m_color_for_display = img_m_color;
-		// draw_digital_arena(&img_m_color_for_display); // Draw arena
+		// draw_digital_arena(&img_m_color_for_display); // Draw arena (sc)
 		draw_goal(&img_m_color_for_display);
-
+		draw_circle(&img_m_color_for_display, draw_x, draw_y);
+		// draw_occ_grid(&img_m_color_for_display, occ_grid);
+		draw_path(&img_m_color_for_display, Path_vision);
 
 		//  Needed for Frame rate calculation of Top camera (xy)
 		gettimeofday(&tEnd, NULL);
@@ -434,12 +449,12 @@ for(i = 0; i< (contours.size()); i++ )
 		for(int i = 0; i < 10; i++)
 		fpsReceive += fpsVec[i];
 		fpsReceive /= 10.0;
-		}																																						//end vision loop due to killVisionthread==1
-		cam.stopGrabbingVideo();
-		usleep ((int)1e5); //make sure that ImageProc_xz has closed
-		cam.deinitialize();
-		printf("@ the End of visionThread().\n");
-		return NULL;
+	}																																						//end vision loop due to killVisionthread==1
+	cam.stopGrabbingVideo();
+	usleep ((int)1e5); //make sure that ImageProc_xz has closed
+	cam.deinitialize();
+	printf("@ the End of visionThread().\n");
+	return NULL;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -513,7 +528,6 @@ void* visionThread_xz(void*) {
 		printf("@ the End of visionThread_xz().\n");
 		return NULL;
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Camera   ------------------> callback.c
@@ -714,8 +728,35 @@ static void draw_digital_arena (Mat* data ) {
     line      ( *data, Point(  0,427), Point(639,427), Scalar(255,0,0) );
 }
 
-static void draw_goal(Mat *data){
+void draw_goal(Mat *data){
 	circle(*data, Point(245,120), 18, Scalar(200, 0, 50), 2, 8, 0 );
+}
+
+void draw_circle(Mat *data, int x, int y){
+	circle(*data, Point(x,y), 3, Scalar(255,0,0), -1);
+}
+
+void draw_occ_grid(Mat *data, int** &occ_grid){ // Bad function, do not use
+	for(int i = 1; i <= width; i++){
+		for(int j = 1; j <= height; j++){
+			if(occ_grid[j-1][i-1] == 0){
+				// printf("reached?\n");
+				circle(*data, Point(i,j), 1, Scalar(255,0,0), -1);
+			}
+		}
+	}
+}
+
+void draw_boundary(Mat *data, Point points[]){ // To be implemented later
+	;
+}
+
+void draw_path(Mat *data, stack<Pair> Path){
+	Pair p; // Iterator of pairs
+	while(!Path.empty()){
+		p = Path.top(); Path.pop();
+		circle(*data, Point(p.second,p.first), 1, Scalar(255,0,0), -1);
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
