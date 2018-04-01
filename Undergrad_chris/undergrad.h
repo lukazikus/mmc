@@ -31,6 +31,8 @@ int on_stopMMC_Thread (void);                  // stops MMC main function
 float *get_output_signals(void);                // Function for giving output signals to actuation
 
 double get_present_time (void);                 // Get present time function
-void create_og(int**, Point [], int);           // Create occupancy grid
+void create_og(int**, Point [], int, float**, float);           // Create occupancy grid
+void calc_clickPos(float*, Pair, float, float*); // Calculate next click position
+void calc_dest(float**, float, Pair &); // Calculate destination of robot based on cargo
 
 #endif
