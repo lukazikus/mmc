@@ -238,13 +238,6 @@ void* visionThread(void*) {
 		int fpsIndex = 0;
 		char x_str[5]; char y_str[5]; char ang_str[5];
 
-		int mouse_x_1;
-	    int mouse_y_1;
-	    int mouse_x_2;
-	    int mouse_y_2;
-	    int arena_w=400;//abs(mouse_x_1-mouse_x_2);
-	    int arena_h=300;//abs(mouse_y_1-mouse_y_2);
-	    int occupy[arena_h][arena_w];//the occupy matrix has the size of the arena
 		while(!killVisionThread) {																						//repeat vision loop until we set killVisionthread=1 using stopVision()
 			gettimeofday(&tStart, NULL);
 			//usleep(6e4); 																													//slow down vision thread; this function watis for a new frame, it takes a long time, so we can do some image processing in this thread
@@ -263,25 +256,14 @@ void* visionThread(void*) {
 		    if (frame.empty())
 		      break;
 		    //frame=frame(Rect(0,50,500,400)); //crop the frame
-		    //cvtColor(frame,hsv,COLOR_BGR2GRAY);
-		    inRange(frame,0,60,mask);//lower and upper greyscale threshold for robot
+		    cvtColor(frame,hsv,COLOR_BGR2GRAY);
+		    inRange(hsv,0,60,mask);//lower and upper greyscale threshold for robot
 		    Mat maskfororientation = mask;
 		    erode(mask,mask,Mat(),Point(-1,-1),2);
 		    dilate(mask,mask,Mat(),Point(-1,-1),2);
-			inRange(frame,80,230,mask2);//lower and upper greyscale threshold for cargot
+			inRange(hsv,80,230,mask2);//lower and upper greyscale threshold for cargot
 		    erode(mask2,mask2,Mat(),Point(-1,-1),2);
 		    dilate(mask2,mask2,Mat(),Point(-1,-1),2);
-
-			for (int w=0; w<arena_w; w++){
-		        for (int h=0; h<arena_h; h++){
-		            if (mask.at<int>(h,w)==255){
-		                occupy[h][w]=1; // 1 is robot, 0 is space
-		            }
-		            if (mask2.at<int>(h,w)==255){
-		                occupy[h][w]=2; // 2 is cargo
-		            }
-		        }
-		    }
 
 		    findContours(mask,cnts,RETR_EXTERNAL,CHAIN_APPROX_SIMPLE,Point(0,0));
 			findContours(mask2,cnts2,RETR_EXTERNAL,CHAIN_APPROX_SIMPLE,Point(0,0));

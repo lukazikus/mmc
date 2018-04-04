@@ -19,6 +19,8 @@ extern int draw_x;
 extern int draw_y;
 extern int** occ_grid;
 extern stack<Pair> Path_vision;
+extern int click_x;
+extern int click_y;
 
 int undergrad_keyboard_init_stop(int d);            // toggle the keyboard detection thread
 int undergrad_walk_init_stop (int d);               // toggle the walk thread
@@ -35,7 +37,7 @@ int on_stopMMC_Thread (void);                  // stops MMC main function
 float *get_output_signals(void);                // Function for giving output signals to actuation
 
 double get_present_time (void);                 // Get present time function
-void create_og(int**, Point [], int, float**, float);           // Create occupancy grid
+void create_og(int** &, Point [], int, float**, float);           // Create occupancy grid
 void calc_clickPos(float*, Pair, float, float*); // Calculate next click position
 void calc_dest(float**, float, Pair &); // Calculate destination of robot based on cargo
 

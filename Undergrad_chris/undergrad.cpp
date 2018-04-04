@@ -24,7 +24,7 @@ static int MMCThread = 0;   // MMC flag :: initially disabled
 static int gradient_on = 1; // 1 means gradient field is on
 static int uniform_on = 0; // 0 means uniform field is on
 static float thresh = 2.0; // Distance in pixels that center of mass of robot can be from goal location
-static bool autonomous = 1; // IMPORTANT Flag for whether robot should follow autonomous path or just go wherever the mouse click tells it to
+static bool autonomous = 0; // IMPORTANT Flag for whether robot should follow autonomous path or just go wherever the mouse click tells it to
 static bool mountable = 0; // Flag for when the robot is able to mount to the cargo
 static int state = -1; // 0 means go towards cargo, 1 means orient to cargo, 2 means move towards cargo, 3 means go to goal position, 4 means orient properly
 static float goal_orientation; // Goal orientation that the cargo should take on
@@ -56,12 +56,14 @@ static float* robot_pos[1]; // Current location of microrobot
 static float* cargo_pos[1]; // Goal location of cargo
 static float* goal_pos[1]; // Goal location of next position for microrobot to align with cargo at first
 static float* click_pos[1]; // Location to actually have the robot move towards
-static float look_ahead = 40; // Distance away from goal position that we should click on the screen
+static float look_ahead = 180; // Distance away from goal position that we should click on the screen
 static float tol = 35; // Distance behind cargo that robot's centre of mass should go to
 
 // Visualization variables
 int draw_x = 325;
 int draw_y = 132;
+int click_x = 1;
+int click_y = 1;
 
 static int saturate_gradient_field_signal () {
     if (gradientFieldVolt[0] > saturationGradientFieldVolt) { // to avoid singularities in X  default constant 0.5 :: it means field is only in X-direction, and so the only choice for pulling too
@@ -144,8 +146,8 @@ static void* autonomy_thread(void * threadid){
     printf("MMC_thread started\n");
 
     float globalFieldAngle = 0.0, globalFieldAngleMemo = 0.0;                   // output field angle for constant field and its memory
-    float pull_const=0, int_const=0, der_const=0, errorPull=0, errorPullPrev=0, errorSum=0,\
-          errorDiff=0, COM_coorX=0, COM_coorY=0, GOAL_coorX=0, GOAL_coorY=0;
+    float pull_const=0, int_const=0, der_const=0, errorPull=0, errorPullPrev=0, errorPos = 0, errorSum=0,\
+          errorDiff=0, COM_coorX=0, COM_coorY=0, GOAL_coorX=0, GOAL_coorY=0, CLICK_coorX=0, CLICK_coorY=0;
     double pulling_angle=0;
     float periodTime = 1.0 / freq;  // time per period
 
@@ -167,8 +169,8 @@ static void* autonomy_thread(void * threadid){
         goal_pos[0] = getGoalPointCoor(); // Initialize goal variable to avoid seg faults
         click_pos[0] = getGoalPointCoor(); // Initialize clicked positoin in image
 
-        printf("robot_pos: (%d,%d)\n", (int)robot_pos[0][0], (int)robot_pos[0][1]);
-        printf("cargo_pos: (%d,%d)\n", (int)cargo_pos[0][0], (int)cargo_pos[0][1]);
+        // printf("robot_pos: (%d,%d)\n", (int)robot_pos[0][0], (int)robot_pos[0][1]);
+        // printf("cargo_pos: (%d,%d)\n", (int)cargo_pos[0][0], (int)cargo_pos[0][1]);
         draw_x = (int)robot_pos[0][0]; draw_y = (int)robot_pos[0][1];
 
         if(state == -1){ // Calibration phase, get arena boundary points and occupancy grid
@@ -177,12 +179,13 @@ static void* autonomy_thread(void * threadid){
             Point points[num_points];
             points[0].x = 142; points[0].y = 132; // Boundary corner points
             points[1].x = 513; points[1].y = 350;
-            points[2].x = 513; points[2].y = 132; // Walls
+            points[2].x = 325; points[2].y = 132; // Walls
             points[3].x = 325; points[3].y = 164;
             points[4].x = 325; points[4].y = 196;
-            points[5].x = 325; points[5].y = 228;
+            points[5].x = 325; points[5].y = 260;
 
             create_og(occ_grid, points, thickness, cargo_pos, radius);
+            printf("Occupancy Grid: %d\n", occ_grid[132][325]);
 
             // Set source and destination of path that robot should traverse
             src = make_pair((int)robot_pos[0][1],(int)robot_pos[0][0]);
@@ -198,33 +201,35 @@ static void* autonomy_thread(void * threadid){
 
             Path.pop(); // Get rid of first element since the robot starts here
 
-            // // Free memory allocated for occ_grid
-            // for(int i = 0; i < ROW; ++i) {
-            //     delete [] occ_grid[i];
-            // }
-            // delete [] occ_grid;
+            // Free memory allocated for occ_grid
+            for(int i = 0; i < ROW; ++i) {
+                delete [] occ_grid[i];
+            }
+            delete [] occ_grid;
 
             state = 0;
         }else if(autonomous && state == 0){ // Extract next position to go to from Path
-            printf("REACHED STATE 0\n");
+            printf("REACHED STATE 0: GOING TO NEXT PATH NODE\n");
             if(Path.empty()){ // Reached destination in path
-                printf("PATH ALREADY EMPTY\n");
-                state = 2;
+                printf("PATH COMPLETE\n");
+                state = -2; // Signifies end
                 continue;
             }
-            printf("STILL IN STATE 0\n");
             next_pos = Path.top(); Path.pop(); // Extract next postion to go to
             calc_clickPos(robot_pos[0], next_pos, look_ahead, click_pos[0]); // Compute next position to click
-            printf("click_pos: (%f,%f)\n", click_pos[0][0], click_pos[0][1]);
             fVibrate = 1; // Vibrate to let robot move
 
-            printf("Going to this position now: (%d,%d), clicking on this position: (%f,%f)\n",\
+            printf("Going to next position: (%d,%d) by clicking here: (%f,%f)\n",\
                    next_pos.second,next_pos.first,click_pos[0][0], click_pos[0][1]);
             state = 1;
         }else if(autonomous && state == 1){
-            if(errorPull < thresh){
+            if(errorPos < thresh){ // Check if robot's current position is near the next one on the path
                 state = 0;
+                continue;
             }
+            printf("Still going to next dest: (%d,%d), currently at (%f,%f), clicking (%f, %f)\n", \
+                   next_pos.second, next_pos.first, robot_pos[0][0], robot_pos[0][1], click_pos[0][0], click_pos[0][1]);
+
         }else if(autonomous && state == 1){ // Turn towards cargo
             // globalFieldAngle = cargo_pos[0][2]; // Align to cargo
             goal_pos[0][0] = robot_pos[0][0] + cos(cargo_pos[0][2]); // Dummy goal position so that robot orients towards cargo
@@ -257,43 +262,41 @@ static void* autonomy_thread(void * threadid){
             click_pos[0] = getGoalPointCoor(); // Use for positioning robot wherever the mouse clicks
             // printf("%f,%f\n",goal_pos[0][0], goal_pos[0][1]);
         }
-        // printf("DEBUG 1\n");
-        //WAYPOINT GENERATION BASED ON CURRENT PATH NODE
-        // Waypoint following
+
+        // Waypoint following based on current path node
         COM_coorX = robot_pos[0][0]; // Current location of robot
         COM_coorY = robot_pos[0][1];
-        GOAL_coorX = click_pos[0][0]; // Next location of robot based on click position
-        GOAL_coorY = click_pos[0][1];
+        CLICK_coorX = click_pos[0][0]; // Next location of robot based on click position
+        CLICK_coorY = click_pos[0][1];
+        click_x = CLICK_coorX; click_y = CLICK_coorY;
+        GOAL_coorX = next_pos.second;
+        GOAL_coorY = next_pos.first;
 
-        // printf("DEBUG 2\n");
-
+        // PID Controller parameters
+        errorPos = sqrt(pow(GOAL_coorX - COM_coorX, 2) + pow(GOAL_coorY - COM_coorY, 2)); // Error term for PID controller
         errorPullPrev = errorPull; // Keep track of previous error for derivative computation
-        errorPull = sqrt(pow(GOAL_coorX - COM_coorX, 2) + pow(GOAL_coorY - COM_coorY, 2)); // Error
+        errorPull = sqrt(pow(CLICK_coorX - COM_coorX, 2) + pow(CLICK_coorY - COM_coorY, 2)); // Error term for PID controller
         errorSum = errorSum + errorPull; // Approximate integral of error
         errorDiff = errorPull - errorPullPrev; // Approximate derivative of error
-        pulling_angle = atan2((float)(GOAL_coorY - COM_coorY), (float)(GOAL_coorX - COM_coorX));
+        pulling_angle = atan2((float)(CLICK_coorY - COM_coorY), (float)(CLICK_coorX - COM_coorX));
         // printf("(X,Y) = (%f, %f),  (E1,E2) = (%f, %f)\n",COM_coorX, COM_coorY, errorPull, pulling_angle); // Debug statement
-
-        // printf("DEBUG 3\n");
 
         // PID control
         pull_const = 1e-2 * PgainMMC * errorPull; // Proportional term
         int_const = 1e-2 * IgainMMC * errorSum; // Integral term
         der_const = 1e-2 * DgainMMC * errorDiff; // Derivative term
 
-        // Use Gradient Field
+        // Use Gradient Field Method
         gradientFieldVolt[0] = (pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*11.4); // Outer coils
         gradientFieldVolt[1] = (pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*11.4);
         gradientFieldVolt[2] = (pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*20); // Inner coils
         gradientFieldVolt[3] = (pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*20);
 
-        // Use Uniform Field
+        // Use Uniform Field with Stick Slip Method
         // uniformFieldVolt[0] = B_strength_MA * cos(globalFieldAngle) / 5.32;         // x-left
         // uniformFieldVolt[1] = B_strength_MA * cos(globalFieldAngle) / 5.32;         // x-right
         // uniformFieldVolt[2] = B_strength_MA * sin(globalFieldAngle) / 5.2;          // y-left
         // uniformFieldVolt[3] = B_strength_MA * sin(globalFieldAngle) / 5.2;          // y-right
-
-        // printf("DEBUG 4\n");
 
         // Create stick slip motion with varying z coil actuation
         presentTime = get_present_time ();
@@ -303,22 +306,16 @@ static void* autonomy_thread(void * threadid){
             startTime = presentTime - timeElapsed;
         }
 
-        // printf("DEBUG 5\n");
-
         outputVZ = -1.0 * ampZ * timeElapsed / periodTime;         // make the object tail tilt up
         // printf("AmpZ: %.2f, Time Elapsed: %.2f, Period Time: %.2f\n", ampZ, timeElapsed, periodTime);
         uniformFieldVolt[4] = outputVZ; // Set z axis voltages
         uniformFieldVolt[5] = outputVZ;
-
-        // printf("DEBUG 6\n");
 
         // Actuate coils
         saturate_gradient_field_signal (); // Saturate gradient field signal to limit it
         add_constant_and_gradient_field_signal (); // Add gradient and uniform field
         output_signal_to_amplifier (); // Write to amplifier to output current (note this is not necessary if used with actuation.cpp)
         usleep(5e4);
-
-        // printf("DEBUG 7\n");
 
         // Visualization of occupancy grid and path
         // draw_goal(&img_m_color_for_display);
@@ -355,41 +352,49 @@ int setDgain_MMC(float d) { // Set D gain
     return 1;
 }
 
-void create_og(int** occ_grid, Point points[], int thickness, float** cargo_pos, float radius){
+void create_og(int** &occ_grid, Point points[], int thickness, float** cargo_pos, float radius){
     // Create obstacles where arena boundaries are
-    int x_avg = (points[0].x + points[1].x)/2;
+    int x_avg = points[2].x;
+    printf("Point y: (%d,%d)\n", points[0].y, points[1].y);
     for(int i = points[0].y; i <= points[1].y; i++){ // Draw 0s on left wall
+        // printf("i: %d\n", i);
         for(int j = points[0].x-thickness/2; j < points[0].x+thickness/2; j++){ // Add thickness to walls
+            // printf("Changed pos 1: (%d,%d)\n", i,j);
             occ_grid[i][j] = 0;
         }
     }
 
     for(int i = points[0].x; i <= points[1].x; i++){ // Draw 0s on bottom wall
         for(int j = points[1].y-thickness/2; j < points[1].y+thickness/2; j++){ // Add thickness to walls
+            // printf("Changed pos: (%d,%d)\n", i,j);
             occ_grid[j][i] = 0;
         }
     }
 
     for(int i = points[0].y; i <= points[1].y; i++){ // Draw 0s on right wall
         for(int j = points[1].x-thickness/2; j < points[1].x+thickness/2; j++){ // Add thickness to walls
+            // printf("Changed pos: (%d,%d)\n", i,j);
             occ_grid[i][j] = 0;
         }
     }
 
     for(int i = points[1].x; i >= points[0].x; i--){ // Draw 0s on top wall
         for(int j = points[0].y-thickness/2; j < points[0].y+thickness/2; j++){ // Add thickness to walls
+            // printf("Changed pos: (%d,%d)\n", i,j);
             occ_grid[j][i] = 0;
         }
     }
 
     for(int i = points[0].y; i <= points[3].y; i++){ // Draw 0s on center wall
         for(int j = x_avg - thickness/2; j < x_avg + thickness/2; j++){ // Add thickness to walls
+            // printf("Changed pos: (%d,%d)\n", i,j);
             occ_grid[i][j] = 0;
         }
     }
 
     for(int i = points[4].y; i <= points[5].y; i++){ // Draw 0s on center wall
         for(int j = x_avg - thickness/2; j < x_avg + thickness/2; j++){ // Add thickness to walls
+            // printf("Changed pos: (%d,%d)\n", i,j);
             occ_grid[i][j] = 0;
         }
     }
@@ -397,6 +402,7 @@ void create_og(int** occ_grid, Point points[], int thickness, float** cargo_pos,
     // Create obstacles where cargo is
     for(int i = cargo_pos[0][0]-radius; i < cargo_pos[0][0]+radius; i++){
         for(int j = cargo_pos[0][1] - radius; j < cargo_pos[0][1] + radius; j++){
+            // printf("Changed pos: (%d,%d)\n", i,j);
             occ_grid[j][i] = 0;
         }
     }
