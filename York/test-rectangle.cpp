@@ -7,9 +7,9 @@
 #include "general_header.hpp"
 #include "NETUSBCAM_API.h"
 #include "ICubeDefines.h"
+//Read: usable variables: Robot: r_x,r_y,r_angle; Cargo: c_x,c_y,c_angle
 
-
-//~/Desktop/Undergraduate_Thesis/York$ g++ `pkg-config --cflags gtk+-3.0` `pkg-config --cflags opencv` -o test test.cpp `pkg-config --libs opencv` `pkg-config --libs gtk+-3.0`
+//~/Desktop/Undergraduate_Thesis/York$ g++ `pkg-config --cflags gtk+-3.0` `pkg-config --cflags opencv` -o test test.cpp `pkg-config --libs opencv` `pkg-config --libs gtk+-3.0` -lNETUSBCAM
 //~/Desktop/Undergraduate_Thesis/York$ ./test
 
 using namespace std;
@@ -21,46 +21,83 @@ bool compareContourAreas ( vector<Point> contour1, vector<Point> contour2 ) {
     return ( i < j );
 }
 
+// unsigned int nGoodCnt=0;
+// unsigned int nBadCnt=0;
+// int GetImage(void *buffer, unsigned int buffersize, void *context)
+// {
+//   if(buffersize==0){		// badframe arrived (this happens here, when (REG_CALLBACK_BR_FRAMES==1)
+// 	nBadCnt++;
+//   }
+//   else				// good frame arrived
+//   {
+// 	nGoodCnt++;
+//   char filename[24];
+//   sprintf(filename,"Output%d.jpg",nGoodCnt);
+//   printf("%p",buffer);
+//
+// 	#ifdef SAVE_RAW
+//   printf("%p\n", buffer);
+// 	char buf[24];
+// 	sprintf(buf,"Nr%d.raw",nGoodCnt);
+// 	SaveRaw((unsigned char*)buffer,buffersize,buf);
+// 	#endif
+//   }
+// }
 
 int main(){
 
   // Create a VideoCapture object and open the input file
   // If the input is the web camera, pass 0 instead of the video file name
 
-  NETUSBCAM_Init();
-  NETUSBCAM_Open(0);
-  NETUSBCAM_SetCamParameter(0,REG_PLL,20);
-  NETUSBCAM_SetCamParameter(0,REG_CALLBACK_BR_FRAMES,1);
-  NETUSBCAM_SetCallback(0,CALLBACK_RGB,&GetImage,NULL);
-  NETUSBCAM_Start(0);	
-  VideoCapture cap(0);
+  // NETUSBCAM_Init();
+  // NETUSBCAM_Open(0);
+  // NETUSBCAM_SetCamParameter(0,REG_PLL,20);
+  // NETUSBCAM_SetCamParameter(0,REG_CALLBACK_BR_FRAMES,1);
+  // NETUSBCAM_SetCallback(0,CALLBACK_RGB,&GetImage,NULL);
+  // NETUSBCAM_Start(0);
+  VideoCapture cap("test2.mp4");
   if(!cap.isOpened()){
     cout << "Error opening video stream or file" << endl;
     return -1;
   }
-
+  int mouse_x_1;
+  int mouse_y_1;
+  int mouse_x_2;
+  int mouse_y_2;
+  int arena_w=400;//abs(mouse_x_1-mouse_x_2);
+  int arena_h=300;//abs(mouse_y_1-mouse_y_2);
+  int occupy[arena_h][arena_w];//the occupy matrix has the size of the arena
+  Mat frame;
+  Mat hsv;
+  Mat mask;
+  Mat mask2;
+  Mat binaryImg;
+  vector<vector<Point> > cnts;
+  vector<vector<Point> > cnts2;
   while(1){
-
-    Mat frame;
-    Mat hsv;
-    Mat mask;
-    Mat mask2;
-    Mat binaryImg;
-    vector<vector<Point> > cnts;
-    vector<vector<Point> > cnts2;
     cap >> frame;
     if (frame.empty())
       break;
-    frame=frame(Rect(50,40,580,300)); //crop the frame
+    frame=frame(Rect(50,40,580,350)); //crop the frame
     cvtColor(frame,hsv,COLOR_BGR2GRAY);
     inRange(hsv,0,60,mask);
-    imshow( "hsv", mask);
     Mat maskfororientation = mask;
     erode(mask,mask,Mat(),Point(-1,-1),2);
     dilate(mask,mask,Mat(),Point(-1,-1),2);
+    imshow("hsv", mask);
 	inRange(hsv,80,230,mask2);
     erode(mask2,mask2,Mat(),Point(-1,-1),2);
     dilate(mask2,mask2,Mat(),Point(-1,-1),2);
+    for (int w=0; w<arena_w; w++){
+        for (int h=0; h<arena_h; h++){
+            if (mask.at<int>(h,w)==255){
+                occupy[h][w]=1;
+            }
+            if (mask2.at<int>(h,w)==255){
+                occupy[h][w]=2;
+            }
+        }
+    }
 
     findContours(mask,cnts,RETR_EXTERNAL,CHAIN_APPROX_SIMPLE,Point(0,0));
 	findContours(mask2,cnts2,RETR_EXTERNAL,CHAIN_APPROX_SIMPLE,Point(0,0));
@@ -73,6 +110,7 @@ int main(){
 
         //printf("size: %d\n", (int)cnts.size());
         vector<RotatedRect> output(cnts.size());
+        vector<RotatedRect> output2(cnts2.size());
 
         for( int i = 0; i < cnts.size(); i++ ){
             output[i] = minAreaRect(cnts[i]);
@@ -84,15 +122,26 @@ int main(){
 
 		drawContours(frame,cnts,0,Scalar(0,0,255),2);
         putText(frame,"Robot",Point((int)r_x,(int)r_y),FONT_HERSHEY_SIMPLEX,0.5,255,2);
-        Point2f center;
-        float radius;
+
         //for( int i = 0; i < cnts2.size(); i++ ){
-        minEnclosingCircle(cnts2[0],center,radius);
-        //}
-        float c_x=center.x;
-        float c_y=center.y;
-        float c_r=radius;
-        circle(frame, Point((int)c_x,(int)c_y), (int)radius, Scalar(0, 255, 0), 2, 8, 0 );
+
+        for( int i = 0; i < cnts2.size(); i++ ){
+            output2[i] = minAreaRect(cnts2[i]);
+        }
+        float c_x=output2[0].center.x;
+        float c_y=output2[0].center.y;
+        float c_w=output2[0].size.width;
+        float c_h=output2[0].size.height;
+        float c_angle=output2[0].angle;
+        if (c_w<c_h){
+            c_angle=90-c_angle;
+        }
+        else {
+            c_angle=0-c_angle;
+        }
+        printf("Cargo Angle: %.2f\n",c_angle);
+		drawContours(frame,cnts2,0,Scalar(0,255,0),2);
+
         putText(frame,"Cargo",Point((int)c_x,(int)c_y),FONT_HERSHEY_SIMPLEX,0.5,255,2);
 
 
@@ -147,7 +196,7 @@ int main(){
     if(c==27)
       break;
   }
-  NETUSBCAM_Stop(0);
+  //NETUSBCAM_Stop(0);
   cap.release();
   destroyAllWindows();
 
