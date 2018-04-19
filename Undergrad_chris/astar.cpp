@@ -250,7 +250,7 @@ int astar_main(){
     Pair src, dest;
 	
     // Create grid map that can be parsed by A*
-    convertMap(maze_input, grid, src);
+    // convertMap(maze_input, grid, src);
     dest = make_pair(22,25);
 
     int** occ_grid = new int*[ROW];
@@ -264,12 +264,12 @@ int astar_main(){
         }
     }
 
-    printf("Source: (%d,%d)\n", src.first,src.second);
-    printf("Destination: (%d,%d)\n", dest.first,dest.second);
+    // printf("Source: (%d,%d)\n", src.first,src.second);
+    // printf("Destination: (%d,%d)\n", dest.first,dest.second);
     printMap(occ_grid);
 
     // aStarSearch(grid, src, dest, Path); // Run A*
-    aStarSearch(occ_grid, src, dest, Path); // Run A*
+    // aStarSearch(occ_grid, src, dest, Path); // Run A*
 
     Pair p = Path.top();
     int WayX = p.first;
