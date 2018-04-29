@@ -12,19 +12,20 @@
 #include <math.h>
 
 //number of amplifiers
-int num_amp = 6;
+const int num_amp = 6;
+int fd[num_amp] = {0,0,0,0,0,0};
+int rc[num_amp] = {0,0,0,0,0,0};
 
 int serialport_init (const char* serialport, int baud) {
     struct termios toptions;
-    int fd;
 
-    fd = open(serialport, O_RDWR | O_NONBLOCK);
-    if (fd == -1) {
+    int fd1 = open(serialport, O_RDWR | O_NONBLOCK);
+    if (fd1 == -1) {
         perror("serialport_init: Unable to open port");
         return -1;
     }
 
-    if (tcgetattr(fd, &toptions) < 0) {
+    if (tcgetattr(fd1, &toptions) < 0) {
         perror("serialport_init: Couldn't get term attributes");
         return -1;
     }
@@ -57,13 +58,13 @@ int serialport_init (const char* serialport, int baud) {
     toptions.c_cc[VTIME] = 0;
     //toptions.c_cc[VTIME] = 20;
 
-    tcsetattr(fd, TCSANOW, &toptions);
-    if( tcsetattr(fd, TCSAFLUSH, &toptions) < 0) {
+    tcsetattr(fd1, TCSANOW, &toptions);
+    if( tcsetattr(fd1, TCSAFLUSH, &toptions) < 0) {
         perror("init_serialport: Couldn't set term attributes");
         return -1;
     }
 
-    return fd;
+    return fd1;
 }
 
 int serialport_flus (int fd) {
@@ -107,36 +108,29 @@ int *init_amp(){
 
     int baudrate = 9600;
 
-    *char **optarg = (char **)malloc(sizeof(int)*num_amp);
-
-    for(int i = 0 ; i < num_amp ; i++)
-    {
-        optarg[i] = (char *)malloc(sizeof(char)*13);
-    }
-
-    sprintf(optarg[0], "/dev/ttyACM0");
-    sprintf(optarg[1], "/dev/ttyACM1");
-    sprintf(optarg[2], "/dev/ttyACM2");
-    sprintf(optarg[3], "/dev/ttyACM3");
-    sprintf(optarg[4], "/dev/ttyACM4");
-    sprintf(optarg[5], "/dev/ttyACM5");
-
-    int fd[num_amp] = {0};
-    int rc[num_amp] = {0};
-
-    for(int i = 0 ; i < num_amp ; i++)
-    {
-        fd[i] = serialport_init(optarg[i], baudrate);
-        rc[i] = serialport_writebyte(fd[i], (uint8_t)131);
-    }
+    fd[0] = serialport_init("/dev/ttyACM0", baudrate);
+    rc[0] = serialport_writebyte(fd[0], (uint8_t)131);
+    
+    fd[1] = serialport_init("/dev/ttyACM1", baudrate);
+    rc[1] = serialport_writebyte(fd[1], (uint8_t)131);   
+    
+    fd[2] = serialport_init("/dev/ttyACM2", baudrate);
+    rc[2] = serialport_writebyte(fd[2], (uint8_t)131);   
+    
+    fd[3] = serialport_init("/dev/ttyACM3", baudrate);
+    rc[3] = serialport_writebyte(fd[3], (uint8_t)131);    
+    
+    fd[4] = serialport_init("/dev/ttyACM4", baudrate);
+    rc[4] = serialport_writebyte(fd[4], (uint8_t)131);    
+    
+    fd[5] = serialport_init("/dev/ttyACM5", baudrate);
+    rc[5] = serialport_writebyte(fd[5], (uint8_t)131);
 
     return fd;
 
 }
 
-int stop_amp(int fd[]){
-
-    int rc[num_amp] = {0};
+int stop_amp(){
 
     //stops all the coils
     for(int j = 0 ; j < num_amp ; j++)
@@ -149,15 +143,13 @@ int stop_amp(int fd[]){
     return 0;
 }
 
-int run_amp(int fd[], double inpow[]){
+int run_amp(float inpow[]){
     int baudrate = 9600;
     const int buf_max = 256;
     char eolchar = '\n';
     char buf[buf_max];
     int timeout = 1000;
     int speed, speed_byte_1, speed_byte_2;
-
-    int rc[num_amp] = {0};
 
     //initialization for the motors
     for(int j = 0 ; j < num_amp ; j++)
@@ -178,7 +170,7 @@ int run_amp(int fd[], double inpow[]){
             rc[j] = serialport_writebyte(fd[j], (uint8_t)speed_byte_1);
             rc[j] = serialport_writebyte(fd[j], (uint8_t)speed_byte_2);
         }
-        else if(inpow > -75)
+        else if(inpow[j] > -75)
         {
             speed = (inpow[j]/-100)*3200;
             speed_byte_1 = speed % 32;
@@ -192,8 +184,8 @@ int run_amp(int fd[], double inpow[]){
         {
             rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
             rc[j] = serialport_writebyte(fd[j], (uint8_t)134);
-            rc[j] = serialport_writebyte(fd[j], 0;
-            rc[j] = serialport_writebyte(fd[j], 0;
+            rc[j] = serialport_writebyte(fd[j], 0);
+            rc[j] = serialport_writebyte(fd[j], 0);
         }
     }
 

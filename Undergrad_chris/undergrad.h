@@ -10,6 +10,7 @@
 #include <pthread.h>
 #include "Amplifier.h"
 #include "vision.h"
+#include "amplifier.h"
 // #include "astar.h"
 #include <math.h>
 #include <bits/stdc++.h>

@@ -148,6 +148,8 @@ static int output_signal_to_amplifier (void) {
 static void* autonomy_thread(void * threadid){
     // Pulling thread
     printf("MMC_thread started\n");
+    init_amp(); // Turn on amplifiers
+    printf("Test 1\n");
 
     float globalFieldAngle = 0.0, globalFieldAngleMemo = 0.0;                   // output field angle for constant field and its memory
     float pull_const=0, int_const=0, der_const=0, errorPull=0, errorPullPrev=0, errorPos = 0, errorSum=0,\
@@ -177,17 +179,18 @@ static void* autonomy_thread(void * threadid){
 
     // Run the main MMC thread (after clicking Start Control)
     while ( MMCThread ) {
+        // printf("Open CV Version: %s\r\n", CV_VERSION);
         // printf("Executing task \n");
         robot_pos[0] = get_robot_pose(); // Get updated coordinates of robot in image frame
         cargo_pos[0] = get_cargo_pose(); // Get mouse key goal point in image frame
         goal_pos[0] = getGoalPointCoor(); // Initialize goal variable to avoid seg faults
-        click_pos[0] = getGoalPointCoor(); // Initialize clicked positoin in image
+        click_pos[0] = getGoalPointCoor(); // Initialize clicked position in image
 
         // printf("robot_pos: (%d,%d)\n", (int)robot_pos[0][0], (int)robot_pos[0][1]);
         // printf("cargo_pos: (%d,%d)\n", (int)cargo_pos[0][0], (int)cargo_pos[0][1]);
         draw_x = (int)robot_pos[0][0]; draw_y = (int)robot_pos[0][1];
 
-        if(state == -1 || state == 4){ // Calibration phase, get arena boundary points and occupancy grid
+        if(autonomous && (state == -1 || state == 4)){ // Calibration phase, get arena boundary points and occupancy grid
             create_og(occ_grid, points, thickness, cargo_pos, radius);
             printf("Occupancy Grid: %d\n", occ_grid[132][325]);
 
@@ -277,8 +280,10 @@ static void* autonomy_thread(void * threadid){
         // Waypoint following based on current path node
         COM_coorX = robot_pos[0][0]; // Current location of robot
         COM_coorY = robot_pos[0][1];
-        CLICK_coorX = click_pos[0][0]; // Next location of robot based on click position
-        CLICK_coorY = click_pos[0][1];
+        // CLICK_coorX = click_pos[0][0]; // Next location of robot based on click position
+        // CLICK_coorY = click_pos[0][1];
+        CLICK_coorX = cargo_pos[0][0]; // Next location of robot based on cargo position (only used for test purposes, not actual competition)
+        CLICK_coorY = cargo_pos[0][1];
         click_x = CLICK_coorX; click_y = CLICK_coorY;
         GOAL_coorX = next_pos.second;
         GOAL_coorY = next_pos.first;
@@ -297,11 +302,17 @@ static void* autonomy_thread(void * threadid){
         int_const = 1e-2 * IgainMMC * errorSum; // Integral term
         der_const = 1e-2 * DgainMMC * errorDiff; // Derivative term
 
+        // Use Gradient Field Method with Lucas' coils
+        gradientFieldVolt[0] = (pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*1.8); // Inner coils
+        gradientFieldVolt[1] = (pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*1.8);
+        gradientFieldVolt[2] = (pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*1.8); // Middle coils
+        gradientFieldVolt[3] = (pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*1.8);
+
         // Use Gradient Field Method
-        gradientFieldVolt[0] = (pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*11.4); // Outer coils
-        gradientFieldVolt[1] = (pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*11.4);
-        gradientFieldVolt[2] = (pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*20); // Inner coils
-        gradientFieldVolt[3] = (pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*20);
+        // gradientFieldVolt[0] = (pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*11.4); // Outer coils
+        // gradientFieldVolt[1] = (pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*11.4);
+        // gradientFieldVolt[2] = (pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*20); // Inner coils
+        // gradientFieldVolt[3] = (pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*20);
 
         // Use Uniform Field with Stick Slip Method
         // uniformFieldVolt[0] = B_strength_MA * cos(globalFieldAngle) / 5.32;         // x-left
@@ -319,21 +330,33 @@ static void* autonomy_thread(void * threadid){
 
         outputVZ = -1.0 * ampZ * timeElapsed / periodTime;         // make the object tail tilt up
         // printf("AmpZ: %.2f, Time Elapsed: %.2f, Period Time: %.2f\n", ampZ, timeElapsed, periodTime);
-        uniformFieldVolt[4] = outputVZ; // Set z axis voltages
-        uniformFieldVolt[5] = outputVZ;
+        // uniformFieldVolt[4] = outputVZ; // Set z axis voltages
+        // uniformFieldVolt[5] = outputVZ;
+
+        // Z Field Lucas' coils
+        uniformFieldVolt[4] = outputVZ*100; // Set z axis voltages
+        uniformFieldVolt[5] = outputVZ*100;
+
+        printf("X Voltage: %f, Y Voltage: %f, Z Voltage: %f\n", gradientFieldVolt[0],gradientFieldVolt[2],uniformFieldVolt[4]); // Print gradient field voltages
 
         // Actuate coils
-        saturate_gradient_field_signal (); // Saturate gradient field signal to limit it
-        add_constant_and_gradient_field_signal (); // Add gradient and uniform field
-        output_signal_to_amplifier (); // Write to amplifier to output current (note this is not necessary if used with actuation.cpp)
-        usleep(5e4);
+        // saturate_gradient_field_signal (); // Saturate gradient field signal to limit it
+        // add_constant_and_gradient_field_signal (); // Add gradient and uniform field
+        // output_signal_to_amplifier (); // Write to amplifier to output current (note this is not necessary if used with actuation.cpp)
+        // usleep(5e4);
+
+        // Actuate coils (Lucas' coils)
+        add_constant_and_gradient_field_signal(); // Add gradient and uniform field
+        run_amp(outputVolt);
 
         // Visualization of occupancy grid and path
         // draw_goal(&img_m_color_for_display);
     }
 
     // Finish MMC thread and turn off all coils
-    coilCurrentClear();
+    // coilCurrentClear();
+
+    stop_amp();
     printf("MMC_thread ended\n");
 }
 
@@ -370,7 +393,7 @@ void create_og(int** &occ_grid, Point points[], int thickness, float** cargo_pos
     for(int i = points[0].y; i <= points[1].y; i++){ // Draw 0s on left wall
         // printf("i: %d\n", i);
         for(int j = points[0].x-thickness/2; j < points[0].x+thickness/2; j++){ // Add thickness to walls
-            // printf("Changed pos 1: (%d,%d)\n", i,j);
+            printf("Changed pos 1: (%d,%d)\n", i,j);
             occ_grid[i][j] = 0;
         }
     }
