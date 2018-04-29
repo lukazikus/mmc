@@ -1,0 +1,9 @@
+GUI Sequence:
+1. Open the GUI
+2. CLick 'Start Video Feed' button on the GUI to start live camera feed
+3. Adjust the lighting to ensure arena is visible
+4. Mouse click 6 times on the screen for the position of the arena
+5. Adjust the lighting to best suit for robot and cargo
+6. Click 'Start Vision Detection' button on the GUI to start vision thread for detection, this will also draw the arena
+7. Click 'Start Autonomy' button on the GUI to start Chris's control part
+8. Click 'End' button to stop video feed and detection
