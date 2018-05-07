@@ -108,22 +108,27 @@ int *init_amp(){
 
     int baudrate = 9600;
 
-    fd[0] = serialport_init("/dev/ttyACM0", baudrate);
+    fd[0] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_Motor_Controller_18v7_52FF-6E06-7283-5255-2916-2567-if00", baudrate);
     rc[0] = serialport_writebyte(fd[0], (uint8_t)131);
-    
-    fd[1] = serialport_init("/dev/ttyACM1", baudrate);
-    rc[1] = serialport_writebyte(fd[1], (uint8_t)131);   
-    
-    fd[2] = serialport_init("/dev/ttyACM2", baudrate);
-    rc[2] = serialport_writebyte(fd[2], (uint8_t)131);   
-    
-    fd[3] = serialport_init("/dev/ttyACM3", baudrate);
-    rc[3] = serialport_writebyte(fd[3], (uint8_t)131);    
-    
-    fd[4] = serialport_init("/dev/ttyACM4", baudrate);
-    rc[4] = serialport_writebyte(fd[4], (uint8_t)131);    
-    
-    fd[5] = serialport_init("/dev/ttyACM5", baudrate);
+
+    //fd[1] = serialport_init("/dev/ttyACM1", baudrate);
+    fd[1] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_Motor_Controller_18v7_49FF-7206-7277-5052-2531-1367-if00", baudrate);
+    rc[1] = serialport_writebyte(fd[1], (uint8_t)131);
+
+    //fd[2] = serialport_init("/dev/ttyACM2", baudrate);
+    fd[2] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-6D06-7277-5052-3251-0967-if00", baudrate);
+    rc[2] = serialport_writebyte(fd[2], (uint8_t)131);
+
+    //fd[3] = serialport_init("/dev/ttyACM3", baudrate);
+    fd[3] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-7206-7277-5052-4517-1167-if00", baudrate);
+    rc[3] = serialport_writebyte(fd[3], (uint8_t)131);
+
+    //fd[4] = serialport_init("/dev/ttyACM4", baudrate);
+    fd[4] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-7506-7277-5052-2313-1367-if00", baudrate);
+    rc[4] = serialport_writebyte(fd[4], (uint8_t)131);
+
+    //fd[5] = serialport_init("/dev/ttyACM5", baudrate);
+    fd[5] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-7A06-7277-5052-2336-1367-if00", baudrate);
     rc[5] = serialport_writebyte(fd[5], (uint8_t)131);
 
     return fd;

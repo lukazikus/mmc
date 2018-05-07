@@ -26,7 +26,7 @@ void error (char * msg);
 
 int serialport_read_until (int fd, char* buf, char until, int buf_max, int timeout);
 
-int *init_amp();    // init. amplifiers
+int init_amp();    // init. amplifiers
 
 int stop_amp ();
 
