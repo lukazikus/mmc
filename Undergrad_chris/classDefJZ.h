@@ -6,6 +6,10 @@
 #include <opencv/highgui.h>
 #include "s826_subroutine.h"
 
+#include "opencv2/objdetect.hpp"
+#include "opencv2/highgui.hpp"
+#include "opencv2/imgproc.hpp"
+
 class Point_JZ {
     public:
         Point_JZ (void);
@@ -57,7 +61,7 @@ class Image_JZ {
         cv::Mat img;
         cv::Mat processedImg;
         cv::Mat contourImg;
-        cv::vector<cv::vector<cv::Point> > 	contours;
+        std::vector<std::vector<cv::Point> > 	contours;
         int agentIndex[4];                                  // index of detected agent in contours (maximum 4)
 };
 
