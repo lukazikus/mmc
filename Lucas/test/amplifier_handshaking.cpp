@@ -111,10 +111,10 @@ int main (int argc, char * argv[]) {
     int speed, speed_byte_1, speed_byte_2;
 
     //number of amplifiers
-    int num_amp = 1;
+    int num_amp = 6;
 
     //input power (percentage)
-    double inpow[] = {0,0,12,0,0,0};
+    double inpow[] = {0,0,0,0,0,0};
 
     int fd[num_amp] = {0};
     int rc[num_amp] = {0};
@@ -146,38 +146,38 @@ int main (int argc, char * argv[]) {
 
     fd[0] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_Motor_Controller_18v7_52FF-6E06-7283-5255-2916-2567-if00", baudrate);
     rc[0] = serialport_writebyte(fd[0], (uint8_t)131);
-    printf("rc %d\n", rc[0]);
-    //fd[1] = serialport_init("/dev/ttyACM1", baudrate);
-    // fd[1] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_Motor_Controller_18v7_49FF-7206-7277-5052-2531-1367-if00", baudrate);
-    // rc[1] = serialport_writebyte(fd[1], (uint8_t)131);
-    //
-    // //fd[2] = serialport_init("/dev/ttyACM2", baudrate);
-    // fd[2] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-6D06-7277-5052-3251-0967-if00", baudrate);
-    // rc[2] = serialport_writebyte(fd[2], (uint8_t)131);
-    //
-    // //fd[3] = serialport_init("/dev/ttyACM3", baudrate);
-    // fd[3] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-7206-7277-5052-4517-1167-if00", baudrate);
-    // rc[3] = serialport_writebyte(fd[3], (uint8_t)131);
-    //
-    // //fd[4] = serialport_init("/dev/ttyACM4", baudrate);
-    // fd[4] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-7506-7277-5052-2313-1367-if00", baudrate);
-    // rc[4] = serialport_writebyte(fd[4], (uint8_t)131);
-    //
-    // //fd[5] = serialport_init("/dev/ttyACM5", baudrate);
-    // fd[5] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-7A06-7277-5052-2336-1367-if00", baudrate);
-    // rc[5] = serialport_writebyte(fd[5], (uint8_t)131);
+    //printf("rc %d\n", rc[0]);
+    // fd[1] = serialport_init("/dev/ttyACM1", baudrate);
+    fd[1] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_Motor_Controller_18v7_49FF-7206-7277-5052-2531-1367-if00", baudrate);
+    rc[1] = serialport_writebyte(fd[1], (uint8_t)131);
 
-//     struct timeval start;
-//     double time_initial, time_current, time_last, time_elapsed, time_out;
-//     gettimeofday(&start, NULL);
-//     time_initial = (double) start.tv_sec+start.tv_usec*1e-6;
-//
-//     time_current = 0;
-//
-//     double freq = 10;
-//
-//     double input;
-//
+    //fd[2] = serialport_init("/dev/ttyACM2", baudrate);
+    fd[2] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-6D06-7277-5052-3251-0967-if00", baudrate);
+    rc[2] = serialport_writebyte(fd[2], (uint8_t)131);
+
+    //fd[3] = serialport_init("/dev/ttyACM3", baudrate);
+    fd[3] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-7206-7277-5052-4517-1167-if00", baudrate);
+    rc[3] = serialport_writebyte(fd[3], (uint8_t)131);
+
+    //fd[4] = serialport_init("/dev/ttyACM4", baudrate);
+    fd[4] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-7506-7277-5052-2313-1367-if00", baudrate);
+    rc[4] = serialport_writebyte(fd[4], (uint8_t)131);
+
+    //fd[5] = serialport_init("/dev/ttyACM5", baudrate);
+    fd[5] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-7A06-7277-5052-2336-1367-if00", baudrate);
+    rc[5] = serialport_writebyte(fd[5], (uint8_t)131);
+
+    struct timeval start;
+    double time_initial, time_current, time_last, time_elapsed, time_out;
+    gettimeofday(&start, NULL);
+    time_initial = (double) start.tv_sec+start.tv_usec*1e-6;
+
+    time_current = 0;
+
+    double freq = 0.1;
+
+    double input;
+
 //     for(int j = 0 ; j < num_amp ; j++)
 //     {
 //         //fd[j] = serialport_init(optarg[j], baudrate);
@@ -185,65 +185,65 @@ int main (int argc, char * argv[]) {
 //         rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
 //     }
 //
-//     while(time_current < 15){
-//
-//         input = 0;//*sin(2*3.14159*freq*time_current)*1.1;
-//
-//         inpow[4] = input;
-//         inpow[5] = input;
-//
-//     //testing with speed (voltage)
-//     for(int j = 0 ; j < num_amp ; j++)
-//     {
-//
-//         time_elapsed = time_last-time_initial;
-//         if(inpow[j] > 0)
-//         {
-//
-//             //gettimeofday(&start, NULL);
-//             //double time_initial = (double) start.tv_sec+start.tv_usec*1e-6;
-//
-//             speed = (inpow[j]/100)*3200;
-//             speed_byte_1 = speed % 32;
-//             speed_byte_2 = speed / 32;
-//             rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
-//             rc[j] = serialport_writebyte(fd[j], (uint8_t)133);
-//             rc[j] = serialport_writebyte(fd[j], (uint8_t)speed_byte_1);
-//             rc[j] = serialport_writebyte(fd[j], (uint8_t)speed_byte_2);
-//
-//             //gettimeofday(&start, NULL);
-//             //time_last = (double) start.tv_sec + start.tv_usec*1e-6;
-//
-//             //printf("%f", time_last-time_initial);
-//         }
-//         else
-//         {
-//             speed = (inpow[j]/-100)*3200;
-//             speed_byte_1 = speed % 32;
-//             speed_byte_2 = speed / 32;
-//             rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
-//             rc[j] = serialport_writebyte(fd[j], (uint8_t)134);
-//             rc[j] = serialport_writebyte(fd[j], (uint8_t)speed_byte_1);
-//             rc[j] = serialport_writebyte(fd[j], (uint8_t)speed_byte_2);
-//         }
-//     }
-//
-//     usleep(3e3);//sleep for 1 seconds
-//
-//     gettimeofday(&start, NULL);
-//     time_current = (double) start.tv_sec+start.tv_usec*1e-6 - time_initial;
-//
-// }
+    while(time_current < 15){
+
+        input = 12*sin(2*3.14159*freq*time_current);
+
+        inpow[4] = input;
+        inpow[5] = input;
+
+    //testing with speed (voltage)
+    for(int j = 0 ; j < num_amp ; j++)
+    {
+
+        time_elapsed = time_last-time_initial;
+        if(inpow[j] > 0)
+        {
+
+            //gettimeofday(&start, NULL);
+            //double time_initial = (double) start.tv_sec+start.tv_usec*1e-6;
+
+            speed = (inpow[j]/100)*3200;
+            speed_byte_1 = speed % 32;
+            speed_byte_2 = speed / 32;
+            rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
+            rc[j] = serialport_writebyte(fd[j], (uint8_t)133);
+            rc[j] = serialport_writebyte(fd[j], (uint8_t)speed_byte_1);
+            rc[j] = serialport_writebyte(fd[j], (uint8_t)speed_byte_2);
+
+            //gettimeofday(&start, NULL);
+            //time_last = (double) start.tv_sec + start.tv_usec*1e-6;
+
+            //printf("%f", time_last-time_initial);
+        }
+        else
+        {
+            speed = (inpow[j]/-100)*3200;
+            speed_byte_1 = speed % 32;
+            speed_byte_2 = speed / 32;
+            rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
+            rc[j] = serialport_writebyte(fd[j], (uint8_t)134);
+            rc[j] = serialport_writebyte(fd[j], (uint8_t)speed_byte_1);
+            rc[j] = serialport_writebyte(fd[j], (uint8_t)speed_byte_2);
+        }
+    }
+
+    usleep(3e3);//sleep for 1 seconds
+
+    gettimeofday(&start, NULL);
+    time_current = (double) start.tv_sec+start.tv_usec*1e-6 - time_initial;
+
+}
 //
 //     //usleep(1e7);//sleep for 10 seconds
 //
-//     //stops all the coils
-//     for(int j = 0 ; j < num_amp ; j++)
-//     {
-//         rc[j] = serialport_writebyte(fd[j], (uint8_t)224);//stop command
-//         //required before you can run the motor:
-//         rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
-//     }
+    //stops all the coils
+    for(int j = 0 ; j < num_amp ; j++)
+    {
+        rc[j] = serialport_writebyte(fd[j], (uint8_t)224);//stop command
+        //required before you can run the motor:
+        rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
+    }
 //
 //     //testing to recieve the temperature
 //     for(int j = 0 ; j < num_amp ; j++)

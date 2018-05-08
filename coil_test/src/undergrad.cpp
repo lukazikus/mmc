@@ -398,10 +398,10 @@ static void * autonomy_thread ( void * threadid ) {
         der_const = 1e-2 * DgainMMC * errorDiff; // Derivative term
 
         // Use Gradient Field Method with Lucas' coils
-        gradientFieldVolt[0] = (pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*1.9); // Inner coils (Y)
-        gradientFieldVolt[1] = (pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*1.9);
-        gradientFieldVolt[2] = (pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*1.3); // Middle coils (X)
-        gradientFieldVolt[3] = (pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*1.3);
+        gradientFieldVolt[0] = 0.1*(pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*1.9); // Inner coils (Y)
+        gradientFieldVolt[1] = 0.1*(pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*1.9);
+        gradientFieldVolt[2] = 0.1*(pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*1.3); // Middle coils (X)
+        gradientFieldVolt[3] = 0.1*(pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*1.3);
 
         // Use Gradient Field Method
         // gradientFieldVolt[0] = (pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*11.4); // Outer coils
@@ -457,7 +457,7 @@ static void * autonomy_thread ( void * threadid ) {
         // Actuate coils (Lucas' coils)
         add_constant_and_gradient_field_signal(); // Add gradient and uniform field
         run_amp(outputVolt);
-
+        usleep(3e3);
         // Visualization of occupancy grid and path
         // draw_goal(&img_m_color_for_display);
     }

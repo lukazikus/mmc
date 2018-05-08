@@ -2,8 +2,8 @@
 
 /* file-wide variable */
 const int num_amp = 6;                          //number of amplifiers
-//static int fd[num_amp] = {0,0,0,0,0,0};
-static int fd = 0;                              // only 1 usb port is used for amplifiers
+static int fd[num_amp] = {0,0,0,0,0,0};
+//static int fd = 0;                              // only 1 usb port is used for amplifiers
 int rc[num_amp] = {0,0,0,0,0,0};
 
 int serialport_init (const char* serialport, int baud) {
@@ -95,34 +95,34 @@ int serialport_read_until (int fd, char* buf, char until, int buf_max, int timeo
 }
 
 /* init. amplifiers */
-int init_amp(){
+int * init_amp(){
     int baudrate = 9600;
 
-    fd = serialport_init("/dev/ttyUSB0", baudrate);
+    //fd = serialport_init("/dev/ttyUSB0", baudrate);
 
-    // //fd[0] = serialport_init("/dev/ttyACM0", baudrate);
-    // fd[0] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_Motor_Controller_18v7_52FF-6E06-7283-5255-2916-2567-if00", baudrate);
-    // rc[0] = serialport_writebyte(fd[0], (uint8_t)131);
-    //
-    // //fd[1] = serialport_init("/dev/ttyACM1", baudrate);
-    // fd[1] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_Motor_Controller_18v7_49FF-7206-7277-5052-2531-1367-if00", baudrate);
-    // rc[1] = serialport_writebyte(fd[1], (uint8_t)131);
-    //
-    // //fd[2] = serialport_init("/dev/ttyACM2", baudrate);
-    // fd[2] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-6D06-7277-5052-3251-0967-if00", baudrate);
-    // rc[2] = serialport_writebyte(fd[2], (uint8_t)131);
-    //
-    // //fd[3] = serialport_init("/dev/ttyACM3", baudrate);
-    // fd[3] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-7206-7277-5052-4517-1167-if00", baudrate);
-    // rc[3] = serialport_writebyte(fd[3], (uint8_t)131);
-    //
-    // //fd[4] = serialport_init("/dev/ttyACM4", baudrate);
-    // fd[4] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-7506-7277-5052-2313-1367-if00", baudrate);
-    // rc[4] = serialport_writebyte(fd[4], (uint8_t)131);
-    //
-    // //fd[5] = serialport_init("/dev/ttyACM5", baudrate);
-    // fd[5] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-7A06-7277-5052-2336-1367-if00", baudrate);
-    // rc[5] = serialport_writebyte(fd[5], (uint8_t)131);
+    //fd[0] = serialport_init("/dev/ttyACM0", baudrate);
+    fd[0] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_Motor_Controller_18v7_52FF-6E06-7283-5255-2916-2567-if00", baudrate);
+    rc[0] = serialport_writebyte(fd[0], (uint8_t)131);
+
+    //fd[1] = serialport_init("/dev/ttyACM1", baudrate);
+    fd[1] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_Motor_Controller_18v7_49FF-7206-7277-5052-2531-1367-if00", baudrate);
+    rc[1] = serialport_writebyte(fd[1], (uint8_t)131);
+
+    //fd[2] = serialport_init("/dev/ttyACM2", baudrate);
+    fd[2] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-6D06-7277-5052-3251-0967-if00", baudrate);
+    rc[2] = serialport_writebyte(fd[2], (uint8_t)131);
+
+    //fd[3] = serialport_init("/dev/ttyACM3", baudrate);
+    fd[3] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-7206-7277-5052-4517-1167-if00", baudrate);
+    rc[3] = serialport_writebyte(fd[3], (uint8_t)131);
+
+    //fd[4] = serialport_init("/dev/ttyACM4", baudrate);
+    fd[4] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-7506-7277-5052-2313-1367-if00", baudrate);
+    rc[4] = serialport_writebyte(fd[4], (uint8_t)131);
+
+    //fd[5] = serialport_init("/dev/ttyACM5", baudrate);
+    fd[5] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_High-Power_Motor_Controller_18v15_49FF-7A06-7277-5052-2336-1367-if00", baudrate);
+    rc[5] = serialport_writebyte(fd[5], (uint8_t)131);
 
     return fd;
 }
@@ -132,17 +132,17 @@ int stop_amp() {
     printf("Stopping amp\n");
     for(int j = 0 ; j < num_amp ; j++)
     {
-        //rc[j] = serialport_writebyte(fd[j], (uint8_t)224);//stop command
+        rc[j] = serialport_writebyte(fd[j], (uint8_t)224);//stop command
         //required before you can run the motor:
-        //rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
-
-        rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
-        rc[j] = serialport_writebyte(fd, (uint8_t)(j+1));    // device number
-        rc[j] = serialport_writebyte(fd, (uint8_t)96);//stop command
-        //required before you can run the motor:
-        rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
-        rc[j] = serialport_writebyte(fd, (uint8_t)(j+1));    // device number
-        rc[j] = serialport_writebyte(fd, (uint8_t)3);
+        rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
+        //
+        // rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
+        // rc[j] = serialport_writebyte(fd, (uint8_t)(j+1));    // device number
+        // rc[j] = serialport_writebyte(fd, (uint8_t)96);//stop command
+        // //required before you can run the motor:
+        // rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
+        // rc[j] = serialport_writebyte(fd, (uint8_t)(j+1));    // device number
+        // rc[j] = serialport_writebyte(fd, (uint8_t)3);
     }
 
     return 0;
@@ -157,69 +157,69 @@ int run_amp(float inpow[]){
     int speed, speed_byte_1, speed_byte_2;
 
     //initialization for the motors
-    for(int j = 0 ; j < num_amp ; j++)
-    {
-        //rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
-        rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
-        //printf("rc %d\n", rc[j]);
-        rc[j] = serialport_writebyte(fd, (uint8_t)(j+1));    // device number
-        //printf("rc %d\n", rc[j]);
-
-        rc[j] = serialport_writebyte(fd, (uint8_t)3);
-
-    }
+    // for(int j = 0 ; j < num_amp ; j++)
+    // {
+    //     //rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
+    //     rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
+    //     //printf("rc %d\n", rc[j]);
+    //     rc[j] = serialport_writebyte(fd, (uint8_t)(j+1));    // device number
+    //     //printf("rc %d\n", rc[j]);
+    //
+    //     rc[j] = serialport_writebyte(fd, (uint8_t)3);
+    //
+    // }
 
     //testing with speed (voltage)
-    for(int j = 0 ; j < num_amp ; j++)
-    {
+    for(int j = 0 ; j < num_amp ; j++){
+        printf("Coil %d: %f\n", j+1, inpow[j]);
         if(inpow[j] > 0 && inpow[j] < 75)
         {
             speed = (inpow[j]/100)*3200;
             speed_byte_1 = speed % 32;
             speed_byte_2 = speed / 32;
-            //rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
-            //rc[j] = serialport_writebyte(fd[j], (uint8_t)133);
-            rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
-            rc[j] = serialport_writebyte(fd, (uint8_t)(j+1));    // device number
-            rc[j] = serialport_writebyte(fd, (uint8_t)3);
+            rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
+            rc[j] = serialport_writebyte(fd[j], (uint8_t)133);
+            // rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
+            // rc[j] = serialport_writebyte(fd, (uint8_t)(j+1));    // device number
+            // rc[j] = serialport_writebyte(fd, (uint8_t)3);
+            //
+            // rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
+            // rc[j] = serialport_writebyte(fd, (uint8_t)(j+1));    // device number
+            // rc[j] = serialport_writebyte(fd, (uint8_t)5);
 
-            rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
-            rc[j] = serialport_writebyte(fd, (uint8_t)(j+1));    // device number
-            rc[j] = serialport_writebyte(fd, (uint8_t)5);
-
-            rc[j] = serialport_writebyte(fd, (uint8_t)speed_byte_1);
-            rc[j] = serialport_writebyte(fd, (uint8_t)speed_byte_2);
+            rc[j] = serialport_writebyte(fd[j], (uint8_t)speed_byte_1);
+            rc[j] = serialport_writebyte(fd[j], (uint8_t)speed_byte_2);
         }
         else if(inpow[j] > -75)
         {
             speed = (inpow[j]/-100)*3200;
             speed_byte_1 = speed % 32;
             speed_byte_2 = speed / 32;
-            //rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
-            //rc[j] = serialport_writebyte(fd[j], (uint8_t)134);
-            rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
-            rc[j] = serialport_writebyte(fd, (uint8_t)(j+1));    // device number
-            rc[j] = serialport_writebyte(fd, (uint8_t)3);
-
-            rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
-            rc[j] = serialport_writebyte(fd, (uint8_t)(j+1));    // device number
-            rc[j] = serialport_writebyte(fd, (uint8_t)6);
-            rc[j] = serialport_writebyte(fd, (uint8_t)speed_byte_1);
-            rc[j] = serialport_writebyte(fd, (uint8_t)speed_byte_2);
+            rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
+            rc[j] = serialport_writebyte(fd[j], (uint8_t)134);
+            // rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
+            // rc[j] = serialport_writebyte(fd, (uint8_t)(j+1));    // device number
+            // rc[j] = serialport_writebyte(fd, (uint8_t)3);
+            //
+            // rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
+            // rc[j] = serialport_writebyte(fd, (uint8_t)(j+1));    // device number
+            // rc[j] = serialport_writebyte(fd, (uint8_t)6);
+            rc[j] = serialport_writebyte(fd[j], (uint8_t)speed_byte_1);
+            rc[j] = serialport_writebyte(fd[j], (uint8_t)speed_byte_2);
         }
         else
         {
-            //rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
-            //rc[j] = serialport_writebyte(fd[j], (uint8_t)134);
-            rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
-            rc[j] = serialport_writebyte(fd, (uint8_t)(j+1));    // device number
-            rc[j] = serialport_writebyte(fd, (uint8_t)3);
-
-            rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
-            rc[j] = serialport_writebyte(fd, (uint8_t)(j+1));    // device number
-            rc[j] = serialport_writebyte(fd, (uint8_t)6);
-            rc[j] = serialport_writebyte(fd, 0);
-            rc[j] = serialport_writebyte(fd, 0);
+            rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
+            rc[j] = serialport_writebyte(fd[j], (uint8_t)134);
+            // rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
+            // rc[j] = serialport_writebyte(fd, (uint8_t)(j+1));    // device number
+            // rc[j] = serialport_writebyte(fd, (uint8_t)3);
+            //
+            // rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
+            // rc[j] = serialport_writebyte(fd, (uint8_t)(j+1));    // device number
+            // rc[j] = serialport_writebyte(fd, (uint8_t)6);
+            rc[j] = serialport_writebyte(fd[j], 0);
+            rc[j] = serialport_writebyte(fd[j], 0);
         }
     }
 

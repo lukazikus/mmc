@@ -13,6 +13,25 @@
 #include <sys/time.h>
 #include <math.h>
 
+const unsigned char CRC7_POLY = 0x91;
+
+unsigned char getCRC(unsigned char message[], unsigned char length)
+{
+  unsigned char i, j, crc = 0;
+
+  for (i = 0; i < length; i++)
+  {
+    crc ^= message[i];
+    for (j = 0; j < 8; j++)
+    {
+      if (crc & 1)
+        crc ^= CRC7_POLY;
+      crc >>= 1;
+    }
+  }
+  return crc;
+}
+
 int serialport_init (const char* serialport, int baud) {
     struct termios toptions;
     int fd;
@@ -176,32 +195,45 @@ int main (int argc, char * argv[]) {
 
     time_current = 0;
 
-    double freq = 10;
+    double freq = 0.1;
 
     double input;
 
     //rc[0] = serialport_writebyte(fd[0], (uint8_t)131);
 
+    //serialport_flus(fd[0]);
+    //printf("after flush 1\n");
+
+
+
     for(int j = 0 ; j < num_amp ; j++) {
+        unsigned char message[4] = {170, j+1, 3, 0x00};
+        message[3] = getCRC(message, 3);
+
         //printf("%d\n", j);
         //fd[j] = serialport_init(optarg[j], baudrate);
         //printf("amplifier: %d, fd: %d\n", j, fd[j]);
-        rc[j] = serialport_writebyte(fd[0], (uint8_t)170);  // pololu protocal
+        rc[j] = serialport_writebyte(fd[0], (uint8_t)message[0]);  // pololu protocal
         //printf("rc %d\n", rc[j]);
-        rc[j] = serialport_writebyte(fd[0], (uint8_t)(j+1));    // device number
+        rc[j] = serialport_writebyte(fd[0], (uint8_t)message[1]);    // device number
         //printf("rc %d\n", rc[j]);
 
-        rc[j] = serialport_writebyte(fd[0], (uint8_t)3);
+        rc[j] = serialport_writebyte(fd[0], (uint8_t)message[2]);
+        rc[j] = serialport_writebyte(fd[0], (uint8_t)message[3]);
         //printf("rc %d\n", rc[j]);
         usleep(3e3);
     }
 
-    //while(time_current < 15) {
-        input = 0;//*sin(2*3.14159*freq*time_current)*1.1;
+    while(time_current < 5) {
+        //input = 5*sin(2*3.14159*freq*time_current)*1.1;
+        input = 12;
 
-        //inpow[4] = input;
-        //inpow[5] = input;
+        inpow[2] = input;
+        inpow[3] = input;
+        // inpow[5] = input;
 
+        //serialport_flus(fd[0]);
+        //printf("after flush 2\n");
         //testing with speed (voltage)
         for(int j = 0 ; j < num_amp ; j++)
         {
@@ -213,64 +245,96 @@ int main (int argc, char * argv[]) {
             //gettimeofday(&start, NULL);
             //double time_initial = (double) start.tv_sec+start.tv_usec*1e-6;
 
+                unsigned char message[4] = {170, j+1, 3, 0x00};
+                message[3] = getCRC(message, 3);
+
                 speed = (inpow[j]/100)*3200;
                 speed_byte_1 = speed % 32;
                 speed_byte_2 = speed / 32;
-                rc[j] = serialport_writebyte(fd[0], (uint8_t)170);  // pololu protocal
-                rc[j] = serialport_writebyte(fd[0], (uint8_t)(j+1));    // device number
-                rc[j] = serialport_writebyte(fd[0], (uint8_t)3);
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message[0]);  // pololu protocal
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message[1]);    // device number
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message[2]);
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message[3]);
+                usleep(3e3);
 
-                rc[j] = serialport_writebyte(fd[0], (uint8_t)170);  // pololu protocal
-                rc[j] = serialport_writebyte(fd[0], (uint8_t)(j+1));    // device number
-                rc[j] = serialport_writebyte(fd[0], (uint8_t)5);
-                rc[j] = serialport_writebyte(fd[0], (uint8_t)speed_byte_1);
-                rc[j] = serialport_writebyte(fd[0], (uint8_t)speed_byte_2);
+                unsigned char message2[6] = {170, j+1, 5, speed_byte_1, speed_byte_2, 0x00};
+                message2[5] = getCRC(message2, 5);
+
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message2[0]);  // pololu protocal
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message2[1]);    // device number
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message2[2]);
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message2[3]);
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message2[4]);
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message2[5]);
+                usleep(3e3);
 
             //gettimeofday(&start, NULL);
             //time_last = (double) start.tv_sec + start.tv_usec*1e-6;
 
             //printf("%f", time_last-time_initial);
-            }
-            else
-            {
+                }
+                else
+                {
+                    unsigned char message[4] = {170, j+1, 3, 0x00};
+                    message[3] = getCRC(message, 3);
+
                 speed = (inpow[j]/-100)*3200;
                 speed_byte_1 = speed % 32;
                 speed_byte_2 = speed / 32;
-                rc[j] = serialport_writebyte(fd[0], (uint8_t)170);  // pololu protocal
-                rc[j] = serialport_writebyte(fd[0], (uint8_t)(j+1));    // device number
-                rc[j] = serialport_writebyte(fd[0], (uint8_t)3);
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message[0]);  // pololu protocal
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message[1]);    // device number
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message[2]);
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message[3]);
+                usleep(3e3);
+                unsigned char message2[6] = {170, j+1, 6, speed_byte_1, speed_byte_2, 0x00};
+                message2[5] = getCRC(message2, 5);
 
-                rc[j] = serialport_writebyte(fd[0], (uint8_t)170);  // pololu protocal
-                rc[j] = serialport_writebyte(fd[0], (uint8_t)(j+1));    // device number
-                rc[j] = serialport_writebyte(fd[0], (uint8_t)6);
-                rc[j] = serialport_writebyte(fd[0], (uint8_t)speed_byte_1);
-                rc[j] = serialport_writebyte(fd[0], (uint8_t)speed_byte_2);
-            }
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message2[0]);  // pololu protocal
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message2[1]);    // device number
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message2[2]);
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message2[3]);
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message2[4]);
+                rc[j] = serialport_writebyte(fd[0], (uint8_t)message2[5]);
+                usleep(3e3);
+                }
         }
 
-        usleep(3e3);//sleep for 1 seconds
+        // usleep(3e3);//sleep for 1 seconds
 
         gettimeofday(&start, NULL);
         time_current = (double) start.tv_sec+start.tv_usec*1e-6 - time_initial;
 
-    //}
-
-    usleep(1e7);//sleep for 10 seconds
-
-    //stops all the coils
-    for(int j = 0 ; j < num_amp ; j++)
-    {
-        rc[j] = serialport_writebyte(fd[0], (uint8_t)170);  // pololu protocal
-        rc[j] = serialport_writebyte(fd[0], (uint8_t)(j+1));    // device number
-        rc[j] = serialport_writebyte(fd[0], (uint8_t)96);//stop command
-        //required before you can run the motor:
-        rc[j] = serialport_writebyte(fd[0], (uint8_t)170);  // pololu protocal
-        rc[j] = serialport_writebyte(fd[0], (uint8_t)(j+1));    // device number
-        rc[j] = serialport_writebyte(fd[0], (uint8_t)3);
     }
 
-    // testing to recieve the temperature
+    // usleep(1e6);//sleep for 10 seconds
+
+    //printf("after setting signal\n");
+    //stops all the coils
     // for(int j = 0 ; j < num_amp ; j++)
+    // {
+    //     unsigned char message[4] = {170, j+1, 96, 0x00};
+    //     message[3] = getCRC(message, 3);
+    //
+    //     rc[j] = serialport_writebyte(fd[0], (uint8_t)message[0]);  // pololu protocal
+    //     rc[j] = serialport_writebyte(fd[0], (uint8_t)message[1]);    // device number
+    //     rc[j] = serialport_writebyte(fd[0], (uint8_t)message[2]);//stop command
+    //     rc[j] = serialport_writebyte(fd[0], (uint8_t)message[3]);//stop command
+    //     usleep(3e3);
+    //     //printf("stop amplifier %d\n", j);
+    //     //required before you can run the motor:
+    //
+    //     unsigned char message2[4] = {170, j+1, 3, 0x00};
+    //     message2[3] = getCRC(message2, 3);
+    //
+    //     rc[j] = serialport_writebyte(fd[0], (uint8_t)message2[0]);  // pololu protocal
+    //     rc[j] = serialport_writebyte(fd[0], (uint8_t)message2[1]);    // device number
+    //     rc[j] = serialport_writebyte(fd[0], (uint8_t)message2[2]);//stop command
+    //     rc[j] = serialport_writebyte(fd[0], (uint8_t)message2[3]);//stop command
+    //     usleep(3e3);
+    // }
+    //
+    // // testing to recieve the temperature
+    // // for(int j = 0 ; j < num_amp ; j++)
     // {
     //     //printf("%d\n",(sizeof(optarg)/sizeof(*optarg)));
     //     printf("initialization result is %d.\n", fd[j]);

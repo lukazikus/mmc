@@ -194,7 +194,7 @@ static void* video_stream_THREAD ( void *threadid ) {
     if(!initCamera(0)){
         printf("error in init. camera\n");
     }
-
+    usleep(1e6);
     /* variable */
     timeval tStart, tEnd;
 
