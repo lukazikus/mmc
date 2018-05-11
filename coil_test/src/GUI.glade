@@ -286,7 +286,7 @@ MMC thread</property>
                   <object class="GtkLabel" id="label1">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">freq (Hz)</property>
+                    <property name="label" translatable="yes">Bottom X Coordinate</property>
                     <property name="justify">center</property>
                     <property name="width_chars">19</property>
                   </object>
@@ -303,6 +303,7 @@ MMC thread</property>
                     <property name="adjustment">ad_freq</property>
                     <property name="digits">1</property>
                     <signal name="changed" handler="on_spin_freq_changed" swapped="no"/>
+                    <signal name="value-changed" handler="on_botcoorX_changed" swapped="no"/>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
@@ -313,7 +314,7 @@ MMC thread</property>
                   <object class="GtkLabel" id="label2">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">amp (mT)</property>
+                    <property name="label" translatable="yes">Left X Coordinate</property>
                     <property name="justify">center</property>
                     <property name="width_chars">18</property>
                   </object>
@@ -330,6 +331,7 @@ MMC thread</property>
                     <property name="adjustment">ad_amp</property>
                     <property name="digits">1</property>
                     <signal name="changed" handler="on_spin_amp_changed" swapped="no"/>
+                    <signal name="value-changed" handler="on_leftcoorX_changed" swapped="no"/>
                   </object>
                   <packing>
                     <property name="left_attach">3</property>
@@ -340,7 +342,7 @@ MMC thread</property>
                   <object class="GtkLabel" id="label3">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">tilting angle (deg)</property>
+                    <property name="label" translatable="yes">Bottom  Y Coordinate</property>
                     <property name="justify">center</property>
                     <property name="width_chars">19</property>
                   </object>
@@ -356,6 +358,7 @@ MMC thread</property>
                     <property name="adjustment">ad_tiltingAngle</property>
                     <property name="digits">1</property>
                     <signal name="changed" handler="on_spin_tiltingAngle_changed" swapped="no"/>
+                    <signal name="value-changed" handler="on_botcoorY_changed" swapped="no"/>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
@@ -363,12 +366,12 @@ MMC thread</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkToggleButton" id="toggle_gradient">
-                    <property name="label" translatable="yes">use gradient</property>
+                  <object class="GtkLabel" id="label5">
                     <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">True</property>
-                    <signal name="toggled" handler="on_toggle_gradient_toggled" swapped="no"/>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">Left Y Coordinate</property>
+                    <property name="justify">center</property>
+                    <property name="width_chars">18</property>
                   </object>
                   <packing>
                     <property name="left_attach">2</property>
@@ -376,7 +379,19 @@ MMC thread</property>
                   </packing>
                 </child>
                 <child>
-                  <placeholder/>
+                  <object class="GtkSpinButton" id="spin_amp1">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="text" translatable="yes">5.0</property>
+                    <property name="adjustment">ad_amp</property>
+                    <property name="digits">1</property>
+                    <property name="value">5</property>
+                    <signal name="value-changed" handler="on_leftcoorX_changed" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="left_attach">3</property>
+                    <property name="top_attach">1</property>
+                  </packing>
                 </child>
               </object>
               <packing>

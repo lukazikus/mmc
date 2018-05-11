@@ -97,8 +97,7 @@ int serialport_read_until (int fd, char* buf, char until, int buf_max, int timeo
 /* init. amplifiers */
 int * init_amp(){
     int baudrate = 9600;
-
-    //fd = serialport_init("/dev/ttyUSB0", baudrate);
+    //fd = serialport_init("/dev/ttyUSB0", baudrate); // For daisy chaining serial
 
     //fd[0] = serialport_init("/dev/ttyACM0", baudrate);
     fd[0] = serialport_init("/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Simple_Motor_Controller_18v7_52FF-6E06-7283-5255-2916-2567-if00", baudrate);
@@ -155,6 +154,7 @@ int run_amp(float inpow[]){
     char buf[buf_max];
     int timeout = 1000;
     int speed, speed_byte_1, speed_byte_2;
+    int limitPercent;
 
     //initialization for the motors
     // for(int j = 0 ; j < num_amp ; j++)
@@ -172,8 +172,16 @@ int run_amp(float inpow[]){
     //testing with speed (voltage)
     for(int j = 0 ; j < num_amp ; j++){
         printf("Coil %d: %f\n", j+1, inpow[j]);
-        if(inpow[j] > 0 && inpow[j] < 75)
-        {
+        if(j == 0 || j == 1){
+            limitPercent = 20;
+        }else if(j == 2 || j == 3){
+            limitPercent = 16;
+        }else{
+            limitPercent = 45;
+        }
+        inpow[j] = abs(inpow[j]) < limitPercent ? inpow[j] : limitPercent*copysign(1,inpow[j]);
+
+        if(inpow[j] > 0 && inpow[j] < 75){ // Motor forwards
             speed = (inpow[j]/100)*3200;
             speed_byte_1 = speed % 32;
             speed_byte_2 = speed / 32;
@@ -190,9 +198,8 @@ int run_amp(float inpow[]){
             rc[j] = serialport_writebyte(fd[j], (uint8_t)speed_byte_1);
             rc[j] = serialport_writebyte(fd[j], (uint8_t)speed_byte_2);
         }
-        else if(inpow[j] > -75)
-        {
-            speed = (inpow[j]/-100)*3200;
+        else if(inpow[j] > -75){ // Motor backwards
+            speed = (-inpow[j]/100)*3200;
             speed_byte_1 = speed % 32;
             speed_byte_2 = speed / 32;
             rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
@@ -207,8 +214,7 @@ int run_amp(float inpow[]){
             rc[j] = serialport_writebyte(fd[j], (uint8_t)speed_byte_1);
             rc[j] = serialport_writebyte(fd[j], (uint8_t)speed_byte_2);
         }
-        else
-        {
+        else{ // Stop motor
             rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
             rc[j] = serialport_writebyte(fd[j], (uint8_t)134);
             // rc[j] = serialport_writebyte(fd, (uint8_t)170);  // pololu protocal
@@ -223,6 +229,8 @@ int run_amp(float inpow[]){
         }
     }
 
+    // Debug print statement
+    printf("Vx: %f, %f || Vy: %f, %f || Vz: %f, %f\n", inpow[0], inpow[1], inpow[2], inpow[3], inpow[4], inpow[5]); // Print gradient field voltages
     usleep(3e3);//sleep for 3 milliseconds
 
     return 0;

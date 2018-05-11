@@ -13,6 +13,8 @@ static float centerPointCoorArray[3]  = {320, 240, 0};  // Current pose of robot
 static float centerPointCoorArray_2[3]  = {320, 140, 0}; // Current pose of cargo
 static float angle1, angle2;                                    // robot angle ?
 
+static float* click_vision_pos[1];
+char buffer[64];
 static Point centerP_adjusted;
 static Point centerP_adjusted_2;
 
@@ -282,7 +284,6 @@ static void* video_stream_THREAD ( void *threadid ) {
 
         Mat color_frame;
         cvtColor ( gray_frame, color_frame, CV_GRAY2BGR); //convert to color anyways
-
         circle (color_frame, centerP_adjusted, 40, Scalar(0, 50, 200), 2, 8, 0 ); // Draw blue circle where robot is
 
         /////   this is for the case there are two separate objects
@@ -306,11 +307,16 @@ static void* video_stream_THREAD ( void *threadid ) {
     		circle( color_frame, centerP_adjusted_2, 40, Scalar(0, 200, 50), 2, 8, 0 ); // Draw green circle where cargo is
     	}
 
+        // Display useful position information
+        click_vision_pos[0] = getGoalPointCoor();
+        int ret = snprintf(buffer, sizeof buffer, "(%f, %f)", click_vision_pos[0][0], click_vision_pos[0][1]);
+        putText(color_frame, buffer, Point(800,50), FONT_HERSHEY_SIMPLEX, 1, Scalar(0,255,0));
+        draw_circle(&color_frame, click_vision_pos[0][0], click_vision_pos[0][1]);
+
         draw_circle (&color_frame, draw_x, draw_y); // Calibration point
 		// draw_occ_grid(&img_m_color_for_display, occ_grid);
 		draw_path (&color_frame, Path_vision);
 		draw_circle (&color_frame, click_x, click_y); // Draw where next click is
-
 
         while (frame_for_display_lock);
         frame_for_display_lock = 1;

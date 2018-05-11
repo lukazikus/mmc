@@ -10,25 +10,31 @@ Occupancy Grid Scheme:
 3 - Occupied by arena
 */
 
-/* file-wide variable */
-/* these variables are no long used */
-static int fThread = 0;
-static float gradientDir = 0.0;                 // gradient angle (radian) w.r.t. +x
-static int fGradient = 0;                       // whether or not apply a gradient
-static float gradientAmpX = 7;
-static float gradienstAmpY = 3;
+static int state = 0; // State of robot in FSM
+static bool autonomous = 0; // IMPORTANT Flag for whether robot should follow autonomous path or just go wherever the mouse click tells it to
+static bool basic = 1; // Flag for whether we go with basic hard code for autonomous challenge
 
 /* global MMC variables */
 static float PgainMMC = 10;   // P gain in MMC
 static float IgainMMC = 0;   // I gain in MMC
 static float DgainMMC = 0;   // D gain in MMC
+static int botCoorX = 0; // Bottom x coordinate of arena
+static int botCoorY = 0; // Bottom y coordinate of arena
+static int leftCoorX = 0; // Left x coordinate of arena
+static int leftCoorY = 0; // Left y coordinate of arena
+static int offsetBotY = 100; // Offset in y direction from bottom of arena to move robot to
+static float offset_cargo = 50; // Offset from cargo to ensure proper mounting
+static float thresh_mount = 5; // Number of pixels that robot can be off from mounting position
+static float thresh_bot = 5; // Number of pixels that robot can be off from reaching bottom of arena
+static float thresh_left = 5; // Number of pixels that robot can be off from reaching left of arena
+float heading = 0; // Current angular displacement of robot from cargo
+
 static int MMCThread = 0;   // MMC flag :: initially disabled
 static int gradient_on = 1; // 1 means gradient field is on
 static int uniform_on = 0; // 0 means uniform field is on
 static float thresh = 2.0; // Distance in pixels that center of mass of robot can be from goal location
-static bool autonomous = 0; // IMPORTANT Flag for whether robot should follow autonomous path or just go wherever the mouse click tells it to
+
 static bool mountable = 0; // Flag for when the robot is able to mount to the cargo
-static int state = -1; //
 static float goal_orientation; // Goal orientation that the cargo should take on
 static float freq = 10;                // frequency of vibration
 static int num_points = 6; // Number of points required for calibration
@@ -119,11 +125,11 @@ static int add_constant_and_gradient_field_signal () {
     }
 
     if (gradientFieldVolt[2] >= 0) {
-        outputVolt[2] = gradientFieldVolt[2];
-        outputVolt[3] = 0;
-    } else {
+        outputVolt[3] = gradientFieldVolt[2];
         outputVolt[2] = 0;
-        outputVolt[3] = gradientFieldVolt[3];
+    } else {
+        outputVolt[3] = 0;
+        outputVolt[2] = gradientFieldVolt[3];
     }
 
     outputVolt[4] = uniformFieldVolt[4];
@@ -215,6 +221,22 @@ static void calc_dest (float** carg_pos, float tol, Pair &dest) {
     dest.first  = cargo_pos[0][1] - tol*cos(cargo_pos[0][2]);
 }
 
+void on_botcoorX_changed (GtkEditable *editable, gpointer user_data){
+    botCoorX = int(gtk_spin_button_get_value(GTK_SPIN_BUTTON(editable)));
+}
+
+void on_botcoorY_changed (GtkEditable *editable, gpointer user_data){
+    botCoorY = int(gtk_spin_button_get_value(GTK_SPIN_BUTTON(editable)));
+}
+
+void on_leftcoorX_changed (GtkEditable *editable, gpointer user_data){
+    leftCoorX = int(gtk_spin_button_get_value(GTK_SPIN_BUTTON(editable)));
+}
+
+void on_leftcoorY_changed (GtkEditable *editable, gpointer user_data){
+    leftCoorY = int(gtk_spin_button_get_value(GTK_SPIN_BUTTON(editable)));
+}
+
 ////////   MMC functions that run after interacting with GUI  //////
 int setPgain_MMC(float d) { // Set P gain
     PgainMMC = d;
@@ -243,7 +265,8 @@ static void * autonomy_thread ( void * threadid ) {
 
     float globalFieldAngle = 0.0, globalFieldAngleMemo = 0.0;     // output field angle for constant field and its memory
     float pull_const=0, int_const=0, der_const=0, errorPull=0, errorPullPrev=0, errorPos = 0, errorSum=0,\
-          errorDiff=0, COM_coorX=0, COM_coorY=0, GOAL_coorX=0, GOAL_coorY=0, CLICK_coorX=0, CLICK_coorY=0;
+          errorDiff=0, COM_coorX=0, COM_coorY=0, GOAL_coorX=0, GOAL_coorY=0, CLICK_coorX=0, CLICK_coorY=0,\
+          REF_coorX=0, REF_coorY=0;
     double pulling_angle=0;
     float periodTime = 1.0 / freq;  // time per period
 
@@ -280,6 +303,30 @@ static void * autonomy_thread ( void * threadid ) {
         // printf("robot_pos: (%d,%d)\n", (int)robot_pos[0][0], (int)robot_pos[0][1]);
         // printf("cargo_pos: (%d,%d)\n", (int)cargo_pos[0][0], (int)cargo_pos[0][1]);
         draw_x = (int)robot_pos[0][0]; draw_y = (int)robot_pos[0][1];
+
+        // Basic code simply moves the robot down, left, and up assuming it grabs cargo
+        if(basic && state == -1){ // Mount to cargo
+            if(sqrt(pow(robot_pos[0][0] - REF_coorX, 2) + pow(robot_pos[0][1] - REF_coorY, 2)) < thresh_mount){
+                state += 1;
+                REF_coorX = botCoorX;
+                REF_coorY = botCoorY - offsetBotY;
+                continue;
+            }
+            heading = atan2(cargo_pos[0][1] - robot_pos[0][1], cargo_pos[0][0] - robot_pos[0][0]);
+            REF_coorX = cargo_pos[0][0] + offset_cargo*cos(heading);
+            REF_coorY = cargo_pos[0][1] + offset_cargo*sin(heading);
+        }else if(basic && state == 0){ // Go to bottom of arena
+            if(sqrt(pow(robot_pos[0][0] - REF_coorX, 2) + pow(robot_pos[0][1] - REF_coorY, 2)) < thresh_bot){
+                state += 1;
+                REF_coorX = leftCoorX; REF_coorY = leftCoorY;
+                continue;
+            }
+        }else if(basic && state == 1){ // Go to left of arena
+            if(sqrt(pow(robot_pos[0][0] - REF_coorX, 2) + pow(robot_pos[0][1] - REF_coorY, 2)) < thresh_left){
+                state += 1;
+                break; // Reached left of arena with cargo
+            }
+        }
 
         if(autonomous && (state == -1 || state == 4)){ // Calibration phase, get arena boundary points and occupancy grid
             create_og(occ_grid, points, thickness, cargo_pos, radius);
@@ -363,7 +410,7 @@ static void * autonomy_thread ( void * threadid ) {
             MMCThread = 0; // Break out of while loop
         }else if(autonomous && state == 8){ // Done
             break;
-        }else{
+        }else{ // Manual mode --> click around to move the robot
             click_pos[0] = getGoalPointCoor(); // Use for positioning robot wherever the mouse clicks
             // printf("%f,%f\n",goal_pos[0][0], goal_pos[0][1]);
         }
@@ -386,7 +433,8 @@ static void * autonomy_thread ( void * threadid ) {
         // PID Controller calculations
         errorPos = sqrt(pow(GOAL_coorX - COM_coorX, 2) + pow(GOAL_coorY - COM_coorY, 2)); // Error term for path planner
         errorPullPrev = errorPull; // Keep track of previous error for derivative computation
-        errorPull = sqrt(pow(CLICK_coorX - COM_coorX, 2) + pow(CLICK_coorY - COM_coorY, 2)); // Error term for PID controller
+
+        errorPull = sqrt(pow(REF_coorX - REF_coorX, 2) + pow(CLICK_coorY - COM_coorY, 2)); // Error term for PID controller
         errorSum = errorSum + errorPull; // Approximate integral of error
         errorDiff = errorPull - errorPullPrev; // Approximate derivative of error
         pulling_angle = atan2((float)(CLICK_coorY - COM_coorY), (float)(CLICK_coorX - COM_coorX));
@@ -397,17 +445,11 @@ static void * autonomy_thread ( void * threadid ) {
         int_const = 1e-2 * IgainMMC * errorSum; // Integral term
         der_const = 1e-2 * DgainMMC * errorDiff; // Derivative term
 
-        // Use Gradient Field Method with Lucas' coils
-        gradientFieldVolt[0] = 0.1*(pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*1.9); // Inner coils (Y)
-        gradientFieldVolt[1] = 0.1*(pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*1.9);
-        gradientFieldVolt[2] = 0.1*(pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*1.3); // Middle coils (X)
-        gradientFieldVolt[3] = 0.1*(pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*1.3);
-
-        // Use Gradient Field Method
-        // gradientFieldVolt[0] = (pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*11.4); // Outer coils
-        // gradientFieldVolt[1] = (pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*11.4);
-        // gradientFieldVolt[2] = (pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*20); // Inner coils
-        // gradientFieldVolt[3] = (pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*20);
+        // Use Gradient Field Method with Lucas' coils (these values are percentages of full voltage)
+        gradientFieldVolt[0] = -0.7*(pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*1.9); // Inner coils (Y)
+        gradientFieldVolt[1] = -0.7*(pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*1.9);
+        gradientFieldVolt[2] = -0.7*(pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*1.3); // Middle coils (X)
+        gradientFieldVolt[3] = -0.7*(pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*1.3);
 
         // Use Uniform Field with Stick Slip Method
         // uniformFieldVolt[0] = B_strength_MA * cos(globalFieldAngle) / 5.32;         // x-left
@@ -428,42 +470,29 @@ static void * autonomy_thread ( void * threadid ) {
         // uniformFieldVolt[4] = outputVZ; // Set z axis voltages
         // uniformFieldVolt[5] = outputVZ;
 
-
-        // Hard coded section to move in a line:
-        // gradientFieldVolt[0] = -20; // Inner coils (Y)
-        // gradientFieldVolt[1] = -20;
-        // gradientFieldVolt[2] = -20; // Middle coils (X)
-        // gradientFieldVolt[3] = -20;
-
         // Z Field Lucas' coils
-        uniformFieldVolt[4] = outputVZ*100; // Set z axis voltages
-        uniformFieldVolt[5] = outputVZ*100;
+        uniformFieldVolt[4] = outputVZ*10; // Set z axis voltages
+        uniformFieldVolt[5] = outputVZ*10;
 
         // Z Field Lucas' coils turn off
         uniformFieldVolt[4] = 0;
         uniformFieldVolt[5] = 0;
 
         // Debug print statements
-        printf("X Voltage: %f, Y Voltage: %f, Z Voltage: %f\n", gradientFieldVolt[0],gradientFieldVolt[2],uniformFieldVolt[4]); // Print gradient field voltages
         printf("Click position: (%f, %f)\n", click_pos[0][0], click_pos[0][1]);
         printf("Robot position: (%f, %f)\n", robot_pos[0][0], robot_pos[0][1]);
         printf("Cargo position: (%f, %f)\n", cargo_pos[0][0], cargo_pos[0][1]);
-        // Actuate coils
-        // saturate_gradient_field_signal (); // Saturate gradient field signal to limit it
-        // add_constant_and_gradient_field_signal (); // Add gradient and uniform field
-        // output_signal_to_amplifier (); // Write to amplifier to output current (note this is not necessary if used with actuation.cpp)
-        // usleep(5e4);
 
         // Actuate coils (Lucas' coils)
         add_constant_and_gradient_field_signal(); // Add gradient and uniform field
         run_amp(outputVolt);
         usleep(3e3);
+
         // Visualization of occupancy grid and path
         // draw_goal(&img_m_color_for_display);
     }
 
     // Finish MMC thread and turn off all coils
-    // coilCurrentClear();
     printf("Stopping\n");
     stop_amp();
     printf("MMC_thread ended\n");
@@ -480,14 +509,6 @@ void on_tB_actuation_toggled (GtkToggleButton *togglebutton, gpointer data) {
         pthread_create ( &MMC_Thread, NULL, autonomy_thread, NULL );
     } else {
         MMCThread = 0;
-        // s826_aoPin(2, 2, 0);         // z-bottom 5.276  1st amplifier
-        // s826_aoPin(5, 2, 0);         // z-top  4.44      2nd amplifier
-        // s826_aoPin(1, 2, 0);         // -y-right  4.96     3rd amplifier
-        // s826_aoPin(4, 2, 0);         // +y-left    5.296   4th amplifier
-        // s826_aoPin(3, 2, 0);         // -x coil  5.14     5th amplifier
-        // s826_aoPin(0, 2, 0);         // +x coil     5.32    6th amplifier
-
-        // Lucas stop amp
-        stop_amp();
+        stop_amp(); // Lucas stop amp
     }
 }

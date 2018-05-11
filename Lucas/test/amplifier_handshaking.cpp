@@ -114,7 +114,8 @@ int main (int argc, char * argv[]) {
     int num_amp = 6;
 
     //input power (percentage)
-    double inpow[] = {0,0,0,0,0,0};
+    float k[6] = {0,0,0,0,5,0};
+    double inpow[] = {0,0,3.2*k[2],3.2*k[3],9*k[4], 9*k[5]};
 
     int fd[num_amp] = {0};
     int rc[num_amp] = {0};
@@ -185,12 +186,12 @@ int main (int argc, char * argv[]) {
 //         rc[j] = serialport_writebyte(fd[j], (uint8_t)131);
 //     }
 //
-    while(time_current < 15){
+    while(time_current < 5){
 
-        input = 12*sin(2*3.14159*freq*time_current);
+        //input = 12*sin(2*3.14159*freq*time_current);
 
-        inpow[4] = input;
-        inpow[5] = input;
+        //inpow[4] = input;
+        //inpow[5] = input;
 
     //testing with speed (voltage)
     for(int j = 0 ; j < num_amp ; j++)
