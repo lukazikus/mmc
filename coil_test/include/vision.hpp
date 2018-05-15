@@ -51,8 +51,8 @@ void stop_video_stream(void);
 float * get_robot_pose(void);
 float * get_cargo_pose(void);
 float * getGoalPointCoor(void);
-
-
+int get_reverse(void);
+int get_stop(void);
 
 gboolean key_event (GtkWidget *widget, GdkEventKey *event);
 gboolean key_event_release (GtkWidget *widget, GdkEventKey *event);

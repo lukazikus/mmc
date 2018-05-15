@@ -10,9 +10,10 @@ Occupancy Grid Scheme:
 3 - Occupied by arena
 */
 
-static int state = 0; // State of robot in FSM
+int state = -1; // State of robot in FSM
 static bool autonomous = 0; // IMPORTANT Flag for whether robot should follow autonomous path or just go wherever the mouse click tells it to
 static bool basic = 1; // Flag for whether we go with basic hard code for autonomous challenge
+int stopped; // Tells whether robot should stop moving and stop the thread
 
 /* global MMC variables */
 static float PgainMMC = 10;   // P gain in MMC
@@ -23,10 +24,10 @@ static int botCoorY = 0; // Bottom y coordinate of arena
 static int leftCoorX = 0; // Left x coordinate of arena
 static int leftCoorY = 0; // Left y coordinate of arena
 static int offsetBotY = 100; // Offset in y direction from bottom of arena to move robot to
-static float offset_cargo = 50; // Offset from cargo to ensure proper mounting
-static float thresh_mount = 5; // Number of pixels that robot can be off from mounting position
-static float thresh_bot = 5; // Number of pixels that robot can be off from reaching bottom of arena
-static float thresh_left = 5; // Number of pixels that robot can be off from reaching left of arena
+static float offset_cargo = 100; // Offset from cargo to ensure proper mounting
+static float thresh_mount = 15; // Number of pixels that robot can be off from mounting position
+static float thresh_bot = 15; // Number of pixels that robot can be off from reaching bottom of arena
+static float thresh_left = 15; // Number of pixels that robot can be off from reaching left of arena
 float heading = 0; // Current angular displacement of robot from cargo
 
 static int MMCThread = 0;   // MMC flag :: initially disabled
@@ -36,7 +37,6 @@ static float thresh = 2.0; // Distance in pixels that center of mass of robot ca
 
 static bool mountable = 0; // Flag for when the robot is able to mount to the cargo
 static float goal_orientation; // Goal orientation that the cargo should take on
-static float freq = 10;                // frequency of vibration
 static int num_points = 6; // Number of points required for calibration
 static int thickness; // Thickness of walls in pixels
 static int cargo_type = 0; // 0 for circle, 1 for rectangle, 2 for triangle
@@ -44,6 +44,7 @@ static int cargo_type = 0; // 0 for circle, 1 for rectangle, 2 for triangle
 /* tilt angle variables */
 static int fVibrate = 1; // Flag for whether the robot should conduct stick slip motion
 float tiltAngle = 20;           // tilting angle of degrees
+static float freq = 10;                // frequency of vibration
 float ampXY = 1;                // field amplitude in voltage
 float ampZ  = ampXY * tand(tiltAngle);
 
@@ -73,6 +74,7 @@ static float final_ang; // Store final angle the robot should rotate towards
 
 /* Visualization variables */
 int draw_x = 525, draw_y = 132, click_x = 1, click_y = 1;   // Visualization variables
+float REF_coorX = 0, REF_coorY = 0; // CUrrent position that robot is trying to follow
 
 /* file-wide functions */
 static int saturate_gradient_field_signal () {
@@ -116,20 +118,21 @@ static int saturate_gradient_field_signal () {
 }
 
 static int add_constant_and_gradient_field_signal () {
+    int reversal = get_reverse();
     if (gradientFieldVolt[0] >= 0) {
-        outputVolt[0] = gradientFieldVolt[0];
-        outputVolt[1] = 0;
+        outputVolt[0] = (1-reversal)*gradientFieldVolt[0];
+        outputVolt[1] = reversal*gradientFieldVolt[1];
     } else {
-        outputVolt[0] = 0;
-        outputVolt[1] = gradientFieldVolt[1];
+        outputVolt[0] = reversal*gradientFieldVolt[0];
+        outputVolt[1] = (1-reversal)*gradientFieldVolt[1];
     }
 
     if (gradientFieldVolt[2] >= 0) {
-        outputVolt[3] = gradientFieldVolt[2];
-        outputVolt[2] = 0;
+        outputVolt[3] = (1-reversal)*gradientFieldVolt[3];
+        outputVolt[2] = reversal*gradientFieldVolt[2];
     } else {
-        outputVolt[3] = 0;
-        outputVolt[2] = gradientFieldVolt[3];
+        outputVolt[3] = reversal*gradientFieldVolt[3];
+        outputVolt[2] = (1-reversal)*gradientFieldVolt[2];
     }
 
     outputVolt[4] = uniformFieldVolt[4];
@@ -265,8 +268,8 @@ static void * autonomy_thread ( void * threadid ) {
 
     float globalFieldAngle = 0.0, globalFieldAngleMemo = 0.0;     // output field angle for constant field and its memory
     float pull_const=0, int_const=0, der_const=0, errorPull=0, errorPullPrev=0, errorPos = 0, errorSum=0,\
-          errorDiff=0, COM_coorX=0, COM_coorY=0, GOAL_coorX=0, GOAL_coorY=0, CLICK_coorX=0, CLICK_coorY=0,\
-          REF_coorX=0, REF_coorY=0;
+          errorDiff=0, COM_coorX=0, COM_coorY=0, GOAL_coorX=0, GOAL_coorY=0, CLICK_coorX=0, CLICK_coorY=0;
+
     double pulling_angle=0;
     float periodTime = 1.0 / freq;  // time per period
 
@@ -292,6 +295,9 @@ static void * autonomy_thread ( void * threadid ) {
 
     // Run the main MMC thread (after clicking Start Control)
     while ( MMCThread ) {
+        if(get_stop()) break;
+
+        printf("Reverse: %d\n", get_reverse());
         printf("Still in the MMC Thread\n");
         // printf("Open CV Version: %s\r\n", CV_VERSION);
         // printf("Executing task \n");
@@ -305,113 +311,117 @@ static void * autonomy_thread ( void * threadid ) {
         draw_x = (int)robot_pos[0][0]; draw_y = (int)robot_pos[0][1];
 
         // Basic code simply moves the robot down, left, and up assuming it grabs cargo
-        if(basic && state == -1){ // Mount to cargo
-            if(sqrt(pow(robot_pos[0][0] - REF_coorX, 2) + pow(robot_pos[0][1] - REF_coorY, 2)) < thresh_mount){
-                state += 1;
-                REF_coorX = botCoorX;
-                REF_coorY = botCoorY - offsetBotY;
-                continue;
-            }
-            heading = atan2(cargo_pos[0][1] - robot_pos[0][1], cargo_pos[0][0] - robot_pos[0][0]);
-            REF_coorX = cargo_pos[0][0] + offset_cargo*cos(heading);
-            REF_coorY = cargo_pos[0][1] + offset_cargo*sin(heading);
-        }else if(basic && state == 0){ // Go to bottom of arena
-            if(sqrt(pow(robot_pos[0][0] - REF_coorX, 2) + pow(robot_pos[0][1] - REF_coorY, 2)) < thresh_bot){
-                state += 1;
-                REF_coorX = leftCoorX; REF_coorY = leftCoorY;
-                continue;
-            }
-        }else if(basic && state == 1){ // Go to left of arena
-            if(sqrt(pow(robot_pos[0][0] - REF_coorX, 2) + pow(robot_pos[0][1] - REF_coorY, 2)) < thresh_left){
-                state += 1;
-                break; // Reached left of arena with cargo
-            }
-        }
+        if(autonomous){
+            if(basic){
+                if(state == -1){ // Mount to cargo
+                    heading = atan2(cargo_pos[0][1] - robot_pos[0][1], cargo_pos[0][0] - robot_pos[0][0]);
+                    REF_coorX = cargo_pos[0][0] + offset_cargo*cos(heading);
+                    REF_coorY = cargo_pos[0][1] + offset_cargo*sin(heading);
+                    if(sqrt(pow(robot_pos[0][0] - REF_coorX, 2) + pow(robot_pos[0][1] - REF_coorY, 2)) < thresh_mount){
+                        state += 1;
+                        REF_coorX = robot_pos[0][0];
+                        REF_coorY = botCoorY - offsetBotY;
+                        continue;
+                    }
+                }else if(state == 0){ // Go to bottom of arena
+                    if(sqrt(pow(robot_pos[0][0] - REF_coorX, 2) + pow(robot_pos[0][1] - REF_coorY, 2)) < thresh_bot){
+                        state += 1;
+                        REF_coorX = leftCoorX; REF_coorY = leftCoorY;
+                        continue;
+                    }
+                }else if(state == 1){ // Go to left of arena
+                    if(sqrt(pow(robot_pos[0][0] - REF_coorX, 2) + pow(robot_pos[0][1] - REF_coorY, 2)) < thresh_left){
+                        state += 1;
+                        break; // Reached left of arena with cargo
+                    }
+                }
+            }else if(state == -1 || state == 4){ // Calibration phase, get arena boundary points and occupancy grid
+                create_og(occ_grid, points, thickness, cargo_pos, radius);
+                printf("Occupancy Grid: %d\n", occ_grid[132][325]);
 
-        if(autonomous && (state == -1 || state == 4)){ // Calibration phase, get arena boundary points and occupancy grid
-            create_og(occ_grid, points, thickness, cargo_pos, radius);
-            printf("Occupancy Grid: %d\n", occ_grid[132][325]);
+                // Set source and destination of path that robot should traverse
+                src  = make_pair ((int)robot_pos[0][1],(int)robot_pos[0][0]);
+                dest = make_pair ((int)cargo_pos[0][1],(int)cargo_pos[0][0]);
+                calc_dest(cargo_pos, tol, dest); // Update detination based on cargo's pose
 
-            // Set source and destination of path that robot should traverse
-            src  = make_pair ((int)robot_pos[0][1],(int)robot_pos[0][0]);
-            dest = make_pair ((int)cargo_pos[0][1],(int)cargo_pos[0][0]);
-            calc_dest(cargo_pos, tol, dest); // Update detination based on cargo's pose
+                printf("src: (%d,%d)\n", src.second, src.first);
+                printf("dest: (%d,%d)\n", dest.second, dest.first);
 
-            printf("src: (%d,%d)\n", src.second, src.first);
-            printf("dest: (%d,%d)\n", dest.second, dest.first);
+                // printf("src: (%d,%d), dest: (%d,%d)\n", src.first,src.second,dest.first,dest.second);
+                aStarSearch(occ_grid, src, dest, Path); // Run A* and generate Path
+                Path_vision = Path; // Copy updated path for vision code to display
 
-            // printf("src: (%d,%d), dest: (%d,%d)\n", src.first,src.second,dest.first,dest.second);
-            aStarSearch(occ_grid, src, dest, Path); // Run A* and generate Path
-            Path_vision = Path; // Copy updated path for vision code to display
+                Path.pop(); // Get rid of first element since the robot starts here
 
-            Path.pop(); // Get rid of first element since the robot starts here
+                // Free memory allocated for occ_grid
+                for(int i = 0; i < ROW; ++i) {
+                    delete [] occ_grid[i];
+                }
+                delete [] occ_grid;
 
-            // Free memory allocated for occ_grid
-            for(int i = 0; i < ROW; ++i) {
-                delete [] occ_grid[i];
+                state += 1; // Go to next state
+            } else if (state == 0 || state == 5){ // Extract next position to go to from Path
+                printf("REACHED STATE 0: GOING TO NEXT PATH NODE\n");
+                if(Path.empty()){ // Reached destination in path
+                    printf("PATH COMPLETE\n");
+                    state = 2; // Signifies end of current path
+                    continue;
+                }
+                next_pos = Path.top(); Path.pop(); // Extract next postion to go to
+                calc_clickPos(robot_pos[0], next_pos, look_ahead, click_pos[0]); // Compute next position to click
+                fVibrate = 1; // Vibrate to let robot move
+
+                printf("Going to next position: (%d,%d) by clicking here: (%f,%f)\n",\
+                       next_pos.second,next_pos.first,click_pos[0][0], click_pos[0][1]);
+                state = 1;
+            } else if (state == 1 || state == 6){ // Move towards current waypoint
+                if(errorPos < thresh){ // Check if robot's current position is near the next one on the path
+                    state = 7;
+                    continue;
+                }
+                printf("Still going to next dest: (%d,%d), currently at (%f,%f), clicking (%f, %f)\n", \
+                       next_pos.second, next_pos.first, robot_pos[0][0], robot_pos[0][1], click_pos[0][0], click_pos[0][1]);
+            } else if (state == 2 || state == 7){ // Turn towards cargo and set position such that robot will move towards cargo
+                final_ang = state == 2 ? cargo_pos[0][2] : desired_ang; // Either set angle of alignment to cargo's orientation or goal orientation based on state
+                if(abs(final_ang - robot_pos[0][2]) > max_angdiff){
+                    next_ang = robot_pos[0][2] + max_angdiff; // Take one rotation step towards cargo
+                }else{
+                    next_ang = cargo_pos[0][2]; // Set next angle to cargo's angle
+                    click_pos[0][0] = cargo_pos[0][0] + look_ahead*cos(cargo_pos[0][2]); // Set goal position slightly ahead of cargo position for state 3
+                    click_pos[0][0] = cargo_pos[0][0] + look_ahead*sin(cargo_pos[0][2]);
+                    state += 1; // Assume we align to the cargo immediately, so we move on to the next state
+                }
+                click_pos[0][0] = robot_pos[0][0] + look_ahead*cos(next_ang); // Dummy goal position so that robot orients towards cargo
+                click_pos[0][1] = robot_pos[0][1] + look_ahead*sin(next_ang);
+                fVibrate = 0; // No need to vibrate when just aligning to goal pose
+                usleep(2000); // Give 2s for the microrobot to orient
+            }else if(state == 3){ // Go towards cargo
+                // globalFieldAngle = pulling_angle;
+                fVibrate = 1; // Vibrate to let robot move
+                if(errorPull < thresh){
+                    state = 4;
+                }
+            }else if(state == 4){ // Go towards goal
+                // globalFieldAngle = pulling_angle;
+                goal_pos[0] = getGoalPointCoor(); // Final goal is wherever the mouse clicks
+                fVibrate = 1; // Vibrate to let robot move
+                if(errorPull < thresh){
+                    state = 4;
+                }
+            }else if(state == 4){ // Align to proper orientation
+                // globalFieldAngle = goal_orientation; // Align to cargo
+                goal_pos[0][0] = robot_pos[0][0] + cos(cargo_pos[0][2]); // Dummy goal position so that robot orients towards cargo
+                goal_pos[0][1] = robot_pos[0][1] + sin(cargo_pos[0][2]);
+                fVibrate = 0; // No need to vibrate when just aligning to goal pose
+                usleep(2000); // Give 2s for the microrobot to orient
+                MMCThread = 0; // Break out of while loop
+            }else if(state == 8){ // Done
+                break;
             }
-            delete [] occ_grid;
-
-            state += 1; // Go to next state
-        } else if (autonomous && (state == 0 || state == 5)){ // Extract next position to go to from Path
-            printf("REACHED STATE 0: GOING TO NEXT PATH NODE\n");
-            if(Path.empty()){ // Reached destination in path
-                printf("PATH COMPLETE\n");
-                state = 2; // Signifies end of current path
-                continue;
-            }
-            next_pos = Path.top(); Path.pop(); // Extract next postion to go to
-            calc_clickPos(robot_pos[0], next_pos, look_ahead, click_pos[0]); // Compute next position to click
-            fVibrate = 1; // Vibrate to let robot move
-
-            printf("Going to next position: (%d,%d) by clicking here: (%f,%f)\n",\
-                   next_pos.second,next_pos.first,click_pos[0][0], click_pos[0][1]);
-            state = 1;
-        } else if (autonomous && (state == 1 || state == 6)){ // Move towards current waypoint
-            if(errorPos < thresh){ // Check if robot's current position is near the next one on the path
-                state = 7;
-                continue;
-            }
-            printf("Still going to next dest: (%d,%d), currently at (%f,%f), clicking (%f, %f)\n", \
-                   next_pos.second, next_pos.first, robot_pos[0][0], robot_pos[0][1], click_pos[0][0], click_pos[0][1]);
-        } else if (autonomous && (state == 2 || state == 7)){ // Turn towards cargo and set position such that robot will move towards cargo
-            final_ang = state == 2 ? cargo_pos[0][2] : desired_ang; // Either set angle of alignment to cargo's orientation or goal orientation based on state
-            if(abs(final_ang - robot_pos[0][2]) > max_angdiff){
-                next_ang = robot_pos[0][2] + max_angdiff; // Take one rotation step towards cargo
-            }else{
-                next_ang = cargo_pos[0][2]; // Set next angle to cargo's angle
-                click_pos[0][0] = cargo_pos[0][0] + look_ahead*cos(cargo_pos[0][2]); // Set goal position slightly ahead of cargo position for state 3
-                click_pos[0][0] = cargo_pos[0][0] + look_ahead*sin(cargo_pos[0][2]);
-                state += 1; // Assume we align to the cargo immediately, so we move on to the next state
-            }
-            click_pos[0][0] = robot_pos[0][0] + look_ahead*cos(next_ang); // Dummy goal position so that robot orients towards cargo
-            click_pos[0][1] = robot_pos[0][1] + look_ahead*sin(next_ang);
-            fVibrate = 0; // No need to vibrate when just aligning to goal pose
-            usleep(2000); // Give 2s for the microrobot to orient
-        }else if(autonomous && state == 3){ // Go towards cargo
-            // globalFieldAngle = pulling_angle;
-            fVibrate = 1; // Vibrate to let robot move
-            if(errorPull < thresh){
-                state = 4;
-            }
-        }else if(autonomous && state == 4){ // Go towards goal
-            // globalFieldAngle = pulling_angle;
-            goal_pos[0] = getGoalPointCoor(); // Final goal is wherever the mouse clicks
-            fVibrate = 1; // Vibrate to let robot move
-            if(errorPull < thresh){
-                state = 4;
-            }
-        }else if(autonomous && state == 4){ // Align to proper orientation
-            // globalFieldAngle = goal_orientation; // Align to cargo
-            goal_pos[0][0] = robot_pos[0][0] + cos(cargo_pos[0][2]); // Dummy goal position so that robot orients towards cargo
-            goal_pos[0][1] = robot_pos[0][1] + sin(cargo_pos[0][2]);
-            fVibrate = 0; // No need to vibrate when just aligning to goal pose
-            usleep(2000); // Give 2s for the microrobot to orient
-            MMCThread = 0; // Break out of while loop
-        }else if(autonomous && state == 8){ // Done
-            break;
         }else{ // Manual mode --> click around to move the robot
             click_pos[0] = getGoalPointCoor(); // Use for positioning robot wherever the mouse clicks
+            REF_coorX = click_pos[0][0];
+            REF_coorY = click_pos[0][1];
             // printf("%f,%f\n",goal_pos[0][0], goal_pos[0][1]);
         }
 
@@ -434,10 +444,10 @@ static void * autonomy_thread ( void * threadid ) {
         errorPos = sqrt(pow(GOAL_coorX - COM_coorX, 2) + pow(GOAL_coorY - COM_coorY, 2)); // Error term for path planner
         errorPullPrev = errorPull; // Keep track of previous error for derivative computation
 
-        errorPull = sqrt(pow(REF_coorX - REF_coorX, 2) + pow(CLICK_coorY - COM_coorY, 2)); // Error term for PID controller
+        errorPull = sqrt(pow(REF_coorX - COM_coorX, 2) + pow(REF_coorY - COM_coorY, 2)); // Error term for PID controller
         errorSum = errorSum + errorPull; // Approximate integral of error
         errorDiff = errorPull - errorPullPrev; // Approximate derivative of error
-        pulling_angle = atan2((float)(CLICK_coorY - COM_coorY), (float)(CLICK_coorX - COM_coorX));
+        pulling_angle = atan2((float)(REF_coorY - COM_coorY), (float)(REF_coorX - COM_coorX));
         // printf("(X,Y) = (%f, %f),  (E1,E2) = (%f, %f)\n",COM_coorX, COM_coorY, errorPull, pulling_angle); // Debug statement
 
         // PID control
@@ -446,10 +456,10 @@ static void * autonomy_thread ( void * threadid ) {
         der_const = 1e-2 * DgainMMC * errorDiff; // Derivative term
 
         // Use Gradient Field Method with Lucas' coils (these values are percentages of full voltage)
-        gradientFieldVolt[0] = -0.7*(pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*1.9); // Inner coils (Y)
-        gradientFieldVolt[1] = -0.7*(pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*1.9);
-        gradientFieldVolt[2] = -0.7*(pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*1.3); // Middle coils (X)
-        gradientFieldVolt[3] = -0.7*(pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*1.3);
+        gradientFieldVolt[0] = -0.5*(pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*1.9); // Inner coils (Y)
+        gradientFieldVolt[1] = -0.5*(pull_const+int_const+der_const) * cos(pulling_angle) / (Coilpair_ratio_MA*1.9);
+        gradientFieldVolt[2] = -0.5*(pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*1.3); // Middle coils (X)
+        gradientFieldVolt[3] = -0.5*(pull_const+int_const+der_const) * sin(pulling_angle) / (Coilpair_ratio_MA*1.3);
 
         // Use Uniform Field with Stick Slip Method
         // uniformFieldVolt[0] = B_strength_MA * cos(globalFieldAngle) / 5.32;         // x-left
@@ -471,12 +481,12 @@ static void * autonomy_thread ( void * threadid ) {
         // uniformFieldVolt[5] = outputVZ;
 
         // Z Field Lucas' coils
-        uniformFieldVolt[4] = outputVZ*10; // Set z axis voltages
-        uniformFieldVolt[5] = outputVZ*10;
+        uniformFieldVolt[4] = outputVZ*5; // Set z axis voltages
+        uniformFieldVolt[5] = outputVZ*5;
 
         // Z Field Lucas' coils turn off
-        uniformFieldVolt[4] = 0;
-        uniformFieldVolt[5] = 0;
+        // uniformFieldVolt[4] = 0;
+        // uniformFieldVolt[5] = 0;
 
         // Debug print statements
         printf("Click position: (%f, %f)\n", click_pos[0][0], click_pos[0][1]);
@@ -503,12 +513,21 @@ void on_tB_actuation_toggled (GtkToggleButton *togglebutton, gpointer data) {
     int d = gtk_toggle_button_get_active (togglebutton);
     if (d == 1) {
         printf("MMC path planning started!\n");
-
+        stopped = 0;
         MMCThread = 1;
         pthread_t MMC_Thread;
         pthread_create ( &MMC_Thread, NULL, autonomy_thread, NULL );
     } else {
         MMCThread = 0;
         stop_amp(); // Lucas stop amp
+    }
+}
+
+void on_autonomy_toggled(GtkToggleButton *togglebutton, gpointer data){
+    int d = gtk_toggle_button_get_active (togglebutton);
+    if(d == 1){
+        autonomous = 1;
+    }else{
+        autonomous = 0;
     }
 }

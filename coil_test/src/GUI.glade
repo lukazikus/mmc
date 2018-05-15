@@ -26,6 +26,42 @@
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
   </object>
+  <object class="GtkAdjustment" id="adjBotX">
+    <property name="upper">500</property>
+    <property name="value">460</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="adjBotY">
+    <property name="upper">400</property>
+    <property name="value">356</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="adjFinalX">
+    <property name="upper">250</property>
+    <property name="value">192</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="adjFinalY">
+    <property name="upper">250</property>
+    <property name="value">195</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="adjLeftX">
+    <property name="upper">200</property>
+    <property name="value">183</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="adjLeftY">
+    <property name="upper">300</property>
+    <property name="value">282</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+  </object>
   <object class="GtkApplicationWindow" id="mainWindow">
     <property name="can_focus">False</property>
     <child>
@@ -201,13 +237,13 @@
             </child>
             <child>
               <object class="GtkCheckButton" id="cB_simulation">
-                <property name="label" translatable="yes">simulation</property>
+                <property name="label" translatable="yes">Autonomy</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">False</property>
                 <property name="xalign">0</property>
                 <property name="draw_indicator">True</property>
-                <signal name="toggled" handler="on_cB_simulation_toggled" swapped="no"/>
+                <signal name="toggled" handler="on_autonomy_toggled" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -299,11 +335,10 @@ MMC thread</property>
                   <object class="GtkSpinButton" id="spin_freq">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
-                    <property name="text" translatable="yes">0.0</property>
-                    <property name="adjustment">ad_freq</property>
+                    <property name="adjustment">adjBotX</property>
                     <property name="digits">1</property>
-                    <signal name="changed" handler="on_spin_freq_changed" swapped="no"/>
-                    <signal name="value-changed" handler="on_botcoorX_changed" swapped="no"/>
+                    <property name="value">458</property>
+                    <signal name="changed" handler="on_botcoorX_changed" swapped="no"/>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
@@ -328,10 +363,10 @@ MMC thread</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="text" translatable="yes">0.0</property>
-                    <property name="adjustment">ad_amp</property>
+                    <property name="adjustment">adjLeftX</property>
                     <property name="digits">1</property>
-                    <signal name="changed" handler="on_spin_amp_changed" swapped="no"/>
-                    <signal name="value-changed" handler="on_leftcoorX_changed" swapped="no"/>
+                    <property name="value">183</property>
+                    <signal name="changed" handler="on_leftcoorX_changed" swapped="no"/>
                   </object>
                   <packing>
                     <property name="left_attach">3</property>
@@ -339,26 +374,13 @@ MMC thread</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="label3">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">Bottom  Y Coordinate</property>
-                    <property name="justify">center</property>
-                    <property name="width_chars">19</property>
-                  </object>
-                  <packing>
-                    <property name="left_attach">0</property>
-                    <property name="top_attach">1</property>
-                  </packing>
-                </child>
-                <child>
                   <object class="GtkSpinButton" id="spin_tiltingAngle">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
-                    <property name="adjustment">ad_tiltingAngle</property>
+                    <property name="adjustment">adjBotY</property>
                     <property name="digits">1</property>
-                    <signal name="changed" handler="on_spin_tiltingAngle_changed" swapped="no"/>
-                    <signal name="value-changed" handler="on_botcoorY_changed" swapped="no"/>
+                    <property name="value">356</property>
+                    <signal name="changed" handler="on_botcoorY_changed" swapped="no"/>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
@@ -383,14 +405,80 @@ MMC thread</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="text" translatable="yes">5.0</property>
-                    <property name="adjustment">ad_amp</property>
+                    <property name="adjustment">adjLeftY</property>
                     <property name="digits">1</property>
-                    <property name="value">5</property>
+                    <property name="value">282</property>
+                    <signal name="changed" handler="on_leftcoorY_changed" swapped="no"/>
                     <signal name="value-changed" handler="on_leftcoorX_changed" swapped="no"/>
                   </object>
                   <packing>
                     <property name="left_attach">3</property>
                     <property name="top_attach">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="spinbutton1">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="adjustment">adjFinalY</property>
+                    <property name="digits">1</property>
+                    <property name="value">195</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">3</property>
+                    <property name="top_attach">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="spinbutton2">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="adjustment">adjFinalX</property>
+                    <property name="digits">1</property>
+                    <property name="value">192</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="top_attach">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label3">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">Bottom  Y Coordinate</property>
+                    <property name="justify">center</property>
+                    <property name="width_chars">19</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label6">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">Final X Coordinate</property>
+                    <property name="justify">center</property>
+                    <property name="width_chars">19</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label7">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">Final Y Coordinate</property>
+                    <property name="justify">center</property>
+                    <property name="width_chars">18</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">2</property>
+                    <property name="top_attach">2</property>
                   </packing>
                 </child>
               </object>

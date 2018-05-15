@@ -1,5 +1,11 @@
 #include "vision.hpp"
 
+// Variables to display on GUI
+static float* click_vision_pos[1];
+static float* robot_pos[1]; // Current location of microrobot
+static float* cargo_pos[1]; // Goal location of cargo
+float distCargo; // Distance between robot and cargo
+
 /* file-wide variable */
 static int width = 640;   //image width, pixels
 static int height = 480;  //image height, pixels
@@ -13,10 +19,13 @@ static float centerPointCoorArray[3]  = {320, 240, 0};  // Current pose of robot
 static float centerPointCoorArray_2[3]  = {320, 140, 0}; // Current pose of cargo
 static float angle1, angle2;                                    // robot angle ?
 
-static float* click_vision_pos[1];
-char buffer[64];
+char bufferClick[64]; char bufferDist[64]; char bufferState[64]; char bufferRef[64];
 static Point centerP_adjusted;
 static Point centerP_adjusted_2;
+
+// Variables for key presses
+int reversal = 0; // Reverse flag; default to forward first
+int stop = 0; // If 1, robot doesn't move
 
 static Point mouse, mouseC, mouseR;
 static float goalPointCoorArray[2]   = {320, 240};
@@ -37,6 +46,15 @@ static bool compareContourAreas ( std::vector<Point> contour1, std::vector<Point
     return ( i < j );
 }
 
+int get_reverse(void){
+    // Return 0 if in forward mode, return 1 otherwise
+    return reversal;
+}
+
+int get_stop(void){
+    return stop;
+}
+
 float *get_robot_pose(void){
 	//	int *centerPointCoorArray  = (int*) malloc(2*sizeof(int));
 	//	printf("TEST1\n");
@@ -53,7 +71,6 @@ float *get_robot_pose(void){
 		// printf("x= %f, y= %f", centerPointCoorArray[0], centerPointCoorArray[1]);
 	    return centerPointCoorArray;
 }
-
 
 float *get_cargo_pose(void){
 	while(centerP_dataSafeLock);                   // wait until change is done
@@ -74,8 +91,8 @@ float *get_cargo_pose(void){
 
 float * getGoalPointCoor(void){
     if(mouse.x>0){
-        goalPointCoorArray[0] = (float)mouse.x*1280/640;
-        goalPointCoorArray[1] = (float)mouse.y*1024/480;
+        goalPointCoorArray[0] = (float)mouse.x - 15;
+        goalPointCoorArray[1] = (float)mouse.y;
         // goalPointCoorArray[0] = (float)mouse.x;
         // goalPointCoorArray[1] = (float)mouse.y;
         // goalPointCoorArray[1] = (float)(480 - mouse.y);   // Note the positive y dir. Note resolution difference between cameras
@@ -167,7 +184,7 @@ int closeCamera(int CAM_ID){
 }
 
 static void draw_circle (Mat *data, int x, int y){
-	circle(*data, Point(x,y), 3, Scalar(0,255,0), -1);
+	circle(*data, Point(x,y), 2, Scalar(0,255,0), -1);
 }
 
 void draw_occ_grid(Mat *data, int** &occ_grid){ // Bad function, do not use
@@ -228,7 +245,8 @@ static void* video_stream_THREAD ( void *threadid ) {
         Mat gray_frame;
         while (raw_frame_lock);
         raw_frame_lock = 1;
-        cvtColor(raw_frame,gray_frame,CV_RGB2GRAY);     // ? not sure the src is RGB or other
+        resize(raw_frame, gray_frame, Size(640,480));
+        cvtColor(gray_frame, gray_frame, CV_RGB2GRAY);    // change color img to gray img for img processing
         raw_frame_lock = 0;
 
         Mat threshold_output;
@@ -279,14 +297,14 @@ static void* video_stream_THREAD ( void *threadid ) {
     		centerP_dataSafeLock = 0;
 
             RotatedRect rotated_bounding_rect = minAreaRect( Mat( contours[largest_contour_index] ) );
-    		angle1=rotated_bounding_rect.angle;//angle 1 is the angle of the robot
+    		angle1=rotated_bounding_rect.angle; //angle 1 is the angle of the robot
         }
 
         Mat color_frame;
         cvtColor ( gray_frame, color_frame, CV_GRAY2BGR); //convert to color anyways
         circle (color_frame, centerP_adjusted, 40, Scalar(0, 50, 200), 2, 8, 0 ); // Draw blue circle where robot is
 
-        /////   this is for the case there are two separate objects
+        /////   This is for the case there are two separate objects
     	if (contours.size() >= 2){
     		int second_largest_area = 0;
             int second_largest_contour_index = 0;
@@ -309,14 +327,27 @@ static void* video_stream_THREAD ( void *threadid ) {
 
         // Display useful position information
         click_vision_pos[0] = getGoalPointCoor();
-        int ret = snprintf(buffer, sizeof buffer, "(%f, %f)", click_vision_pos[0][0], click_vision_pos[0][1]);
-        putText(color_frame, buffer, Point(800,50), FONT_HERSHEY_SIMPLEX, 1, Scalar(0,255,0));
-        draw_circle(&color_frame, click_vision_pos[0][0], click_vision_pos[0][1]);
+        robot_pos[0] = get_robot_pose();
+        cargo_pos[0] = get_cargo_pose();
+        distCargo = sqrt(pow(robot_pos[0][0] - cargo_pos[0][0], 2) + pow(robot_pos[0][1] - cargo_pos[0][1], 2));
 
-        draw_circle (&color_frame, draw_x, draw_y); // Calibration point
+        snprintf(bufferClick, sizeof bufferClick, "Click Position: (%.2f, %.2f)", click_vision_pos[0][0], click_vision_pos[0][1]);
+        snprintf(bufferDist, sizeof bufferDist, "Distance to Cargo: %.2f", distCargo);
+        snprintf(bufferState, sizeof bufferState, "State: %d", state);
+        snprintf(bufferRef, sizeof bufferRef, "Reference Position: (%.2f, %.2f)", REF_coorX, REF_coorY);
+
+        putText(color_frame, bufferClick, Point(390,10), FONT_HERSHEY_SIMPLEX, 0.4, Scalar(255,255,255));
+        putText(color_frame, bufferDist, Point(390,25), FONT_HERSHEY_SIMPLEX, 0.4, Scalar(255,255,255));
+        putText(color_frame, bufferState, Point(390,40), FONT_HERSHEY_SIMPLEX, 0.4, Scalar(255,255,255));
+        putText(color_frame, bufferRef, Point(390,55), FONT_HERSHEY_SIMPLEX, 0.4, Scalar(255,255,255));
+
+        draw_circle(&color_frame, click_vision_pos[0][0], click_vision_pos[0][1]); // Draw click position
+        circle(color_frame, Point(REF_coorX, REF_coorY), 2, Scalar(255,0,0), -1); // Draw click position
+        // draw_circle (&color_frame, draw_x, draw_y); // Calibration point
+
 		// draw_occ_grid(&img_m_color_for_display, occ_grid);
 		draw_path (&color_frame, Path_vision);
-		draw_circle (&color_frame, click_x, click_y); // Draw where next click is
+		// draw_circle (&color_frame, click_x, click_y); // Draw where next click is
 
         while (frame_for_display_lock);
         frame_for_display_lock = 1;
@@ -325,7 +356,8 @@ static void* video_stream_THREAD ( void *threadid ) {
         //if (raw_frame.data == NULL)
         //    printf("raw frame is null.\n");
         //resize(raw_frame, frameForDisplay, Size(640,480) );
-        resize(color_frame, frameForDisplay, Size(640,480) );
+        // resize(color_frame, frameForDisplay, Size(640,480) );
+        color_frame.copyTo(frameForDisplay);
         //printf("after copy\n");
         frame_for_display_lock = 0;
 
@@ -373,11 +405,12 @@ gboolean key_event (GtkWidget *widget, GdkEventKey *event) {
     int keycode = -1;
 
     switch (event->keyval) {
-        case 65363: keycode = 0; break;
-        case 65362: keycode = 1; break;
-        case 65361: keycode = 2; break;
-        case 65364: keycode = 3; break;
-        case    32: keycode = -1; break;
+        case 65363: keycode = 0; printf("Key right\n"); break; // Key right
+        case 65362: keycode = 1; printf("Key up\n"); break; // Key up
+        case 65361: keycode = 2; printf("Key left\n"); break; // Key left
+        case 65364: keycode = 3; printf("Key down\n"); break; // Key down
+        case    32: keycode = -1; reversal = 1-reversal; printf("Key space\n"); break; // Key space
+        case 0x071: keycode = -2; stop = 1-stop; printf("Key q\n"); break; // Key q
     }
 
     //set_directionCode (keycode);
