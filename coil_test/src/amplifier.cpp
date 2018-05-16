@@ -171,7 +171,7 @@ int run_amp(float inpow[]){
 
     //testing with speed (voltage)
     for(int j = 0 ; j < num_amp ; j++){
-        printf("Coil %d: %f\n", j+1, inpow[j]);
+        // printf("Coil %d: %f\n", j+1, inpow[j]);
         if(j == 0 || j == 1){
             limitPercent = 20;
         }else if(j == 2 || j == 3){

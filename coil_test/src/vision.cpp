@@ -91,7 +91,7 @@ float *get_cargo_pose(void){
 
 float * getGoalPointCoor(void){
     if(mouse.x>0){
-        goalPointCoorArray[0] = (float)mouse.x - 15;
+        goalPointCoorArray[0] = (float)mouse.x - 7;
         goalPointCoorArray[1] = (float)mouse.y;
         // goalPointCoorArray[0] = (float)mouse.x;
         // goalPointCoorArray[1] = (float)mouse.y;
@@ -325,7 +325,7 @@ static void* video_stream_THREAD ( void *threadid ) {
     		circle( color_frame, centerP_adjusted_2, 40, Scalar(0, 200, 50), 2, 8, 0 ); // Draw green circle where cargo is
     	}
 
-        // Display useful position information
+        // Get position information from robot, cargo, and click positions
         click_vision_pos[0] = getGoalPointCoor();
         robot_pos[0] = get_robot_pose();
         cargo_pos[0] = get_cargo_pose();
@@ -342,7 +342,7 @@ static void* video_stream_THREAD ( void *threadid ) {
         putText(color_frame, bufferRef, Point(390,55), FONT_HERSHEY_SIMPLEX, 0.4, Scalar(255,255,255));
 
         draw_circle(&color_frame, click_vision_pos[0][0], click_vision_pos[0][1]); // Draw click position
-        circle(color_frame, Point(REF_coorX, REF_coorY), 2, Scalar(255,0,0), -1); // Draw click position
+        circle(color_frame, Point(REF_coorX, REF_coorY), 2, Scalar(255,0,0), -1); // Draw current reference position
         // draw_circle (&color_frame, draw_x, draw_y); // Calibration point
 
 		// draw_occ_grid(&img_m_color_for_display, occ_grid);
