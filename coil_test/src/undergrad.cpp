@@ -19,18 +19,20 @@ int stopped; // Tells whether robot should stop moving and stop the thread
 static float PgainMMC = 10;   // P gain in MMC
 static float IgainMMC = 0;   // I gain in MMC
 static float DgainMMC = 0;   // D gain in MMC
-static int botCoorX = 458; // Bottom x coordinate of arena
-static int botCoorY = 356; // Bottom y coordinate of arena
-static int leftCoorX = 184; // Left x coordinate of arena
-static int leftCoorY = 282; // Left y coordinate of arena
-static int finalCoorX = 192; // Left x coordinate of arena
-static int finalCoorY = 195; // Left y coordinate of arena
-static int offsetBotY = 100; // Offset in y direction from bottom of arena to move robot to
+static int botCoorX = 474; // Bottom x coordinate of arena
+static int botCoorY = 449; // Bottom y coordinate of arena
+static int leftCoorX = 194; // Left x coordinate of arena
+static int leftCoorY = 367; // Left y coordinate of arena
+static int finalCoorX = 162; // Left x coordinate of arena
+static int finalCoorY = 275; // Left y coordinate of arena
+static int offsetBotY = 75; // Offset in y direction from bottom of arena to move robot to
 static float offset_cargo = 100; // Offset from cargo to ensure proper mounting
 static float thresh_mount = 55; // Number of pixels that robot can be off from mounting position
 static float thresh_bot = 15; // Number of pixels that robot can be off from reaching bottom of arena
 static float thresh_left = 15; // Number of pixels that robot can be off from reaching left of arena
+static float thresh_backup = 50; // Number of pixels that robot can be close to cargo from reaching backing up from cargo
 float heading = 0; // Current angular displacement of robot from cargo
+int reversal_override = 0; // If 1, robot goes backward no matter what
 
 float dist_cargo_iteration; // Distance between previous and current location of cargo
 float thresh_cargo = 15; // How much distance the cargo can realistically move between frames
@@ -39,7 +41,6 @@ static int MMCThread = 0;   // MMC flag :: initially disabled
 static int gradient_on = 1; // 1 means gradient field is on
 static int uniform_on = 0; // 0 means uniform field is on
 static float thresh = 2.0; // Distance in pixels that center of mass of robot can be from goal location
-
 static bool mountable = 0; // Flag for when the robot is able to mount to the cargo
 static float goal_orientation; // Goal orientation that the cargo should take on
 static int num_points = 6; // Number of points required for calibration
@@ -49,7 +50,7 @@ static int cargo_type = 0; // 0 for circle, 1 for rectangle, 2 for triangle
 /* tilt angle variables */
 static int fVibrate = 1; // Flag for whether the robot should conduct stick slip motion
 float tiltAngle = 20;           // tilting angle of degrees
-static float freq = 5;                // frequency of vibration
+static float freq = 15;                // frequency of vibration
 float ampXY = 1;                // field amplitude in voltage
 float ampZ  = ampXY * tand(tiltAngle);
 
@@ -125,6 +126,7 @@ static int saturate_gradient_field_signal () {
 
 static int add_constant_and_gradient_field_signal () {
     int reversal = get_reverse();
+    if(reversal_override) reversal = 1; // Robot backs up at last stage of autonomy
     if (gradientFieldVolt[0] >= 0) {
         outputVolt[0] = (1-reversal)*gradientFieldVolt[0];
         outputVolt[1] = reversal*gradientFieldVolt[1];
@@ -144,17 +146,6 @@ static int add_constant_and_gradient_field_signal () {
     outputVolt[4] = uniformFieldVolt[4];
     outputVolt[5] = uniformFieldVolt[5];
 
-    return 1;
-}
-
-static int output_signal_to_amplifier (void) {
-    s826_aoPin(2, 2, fVibrate ? outputVolt[5] : 0);        // z-bottom 5.276  1st amplifier
-    s826_aoPin(5, 2, fVibrate ? outputVolt[4] : 0);        // z-top  4.44     2nd amplifier
-    s826_aoPin(1, 2, outputVolt[3]);         // y-right  4.96     3rd amplifier
-    s826_aoPin(4, 2, outputVolt[2]);         // y-left    5.296   4th amplifier
-    s826_aoPin(3, 2, outputVolt[1]);         // -x coil  5.14     5th amplifier
-    s826_aoPin(0, 2, outputVolt[0]);         // +x coil     5.32    6th amplifier
-    // printf("output voltage %.2f, %.2f, %.2f, %.2f,  %.2f,  %.2f\n",outputVolt[0],outputVolt[1],outputVolt[2],outputVolt[3],outputVolt[4],outputVolt[5]);
     return 1;
 }
 
@@ -365,6 +356,14 @@ static void * autonomy_thread ( void * threadid ) {
                     }
                 }else if(state == 2){ // Go to final position of arena
                     if(sqrt(pow(robot_pos[0][0] - REF_coorX, 2) + pow(robot_pos[0][1] - REF_coorY, 2)) < thresh_left){
+                        state += 1;
+                        reversal_override = 1;
+                        REF_coorX = finalCoorX + 100; REF_coorY = finalCoorY;
+                    }
+                }else if(state == 3){ // Rotate cargo to correct pose and back up
+                    if(sqrt(pow(robot_pos[0][0] - REF_coorX, 2) + pow(robot_pos[0][1] - REF_coorY, 2)) > thresh_backup){
+                        state = -1;
+                        reversal_override = 0;
                         break;
                     }
                 }
@@ -514,8 +513,8 @@ static void * autonomy_thread ( void * threadid ) {
         // uniformFieldVolt[5] = outputVZ;
 
         // Z Field Lucas' coils
-        uniformFieldVolt[4] = outputVZ*5; // Set z axis voltages
-        uniformFieldVolt[5] = outputVZ*5;
+        uniformFieldVolt[4] = outputVZ*10; // Set z axis voltages
+        uniformFieldVolt[5] = outputVZ*10;
 
         // Z Field Lucas' coils turn off
         // uniformFieldVolt[4] = 0;

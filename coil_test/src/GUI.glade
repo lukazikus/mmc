@@ -27,38 +27,38 @@
     <property name="page_increment">10</property>
   </object>
   <object class="GtkAdjustment" id="adjBotX">
-    <property name="upper">500</property>
-    <property name="value">460</property>
+    <property name="upper">600</property>
+    <property name="value">474</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
   </object>
   <object class="GtkAdjustment" id="adjBotY">
-    <property name="upper">400</property>
-    <property name="value">356</property>
+    <property name="upper">600</property>
+    <property name="value">449</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
   </object>
   <object class="GtkAdjustment" id="adjFinalX">
-    <property name="upper">250</property>
-    <property name="value">192</property>
+    <property name="upper">300</property>
+    <property name="value">162</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
   </object>
   <object class="GtkAdjustment" id="adjFinalY">
-    <property name="upper">250</property>
-    <property name="value">195</property>
+    <property name="upper">300</property>
+    <property name="value">275</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
   </object>
   <object class="GtkAdjustment" id="adjLeftX">
-    <property name="upper">200</property>
-    <property name="value">183</property>
+    <property name="upper">400</property>
+    <property name="value">194</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
   </object>
   <object class="GtkAdjustment" id="adjLeftY">
-    <property name="upper">300</property>
-    <property name="value">282</property>
+    <property name="upper">400</property>
+    <property name="value">367</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
   </object>
@@ -337,7 +337,7 @@ MMC thread</property>
                     <property name="can_focus">True</property>
                     <property name="adjustment">adjBotX</property>
                     <property name="digits">1</property>
-                    <property name="value">458</property>
+                    <property name="value">474</property>
                     <signal name="changed" handler="on_botcoorX_changed" swapped="no"/>
                   </object>
                   <packing>
@@ -365,7 +365,7 @@ MMC thread</property>
                     <property name="text" translatable="yes">0.0</property>
                     <property name="adjustment">adjLeftX</property>
                     <property name="digits">1</property>
-                    <property name="value">183</property>
+                    <property name="value">194</property>
                     <signal name="changed" handler="on_leftcoorX_changed" swapped="no"/>
                   </object>
                   <packing>
@@ -379,7 +379,7 @@ MMC thread</property>
                     <property name="can_focus">True</property>
                     <property name="adjustment">adjBotY</property>
                     <property name="digits">1</property>
-                    <property name="value">356</property>
+                    <property name="value">449</property>
                     <signal name="changed" handler="on_botcoorY_changed" swapped="no"/>
                   </object>
                   <packing>
@@ -407,7 +407,7 @@ MMC thread</property>
                     <property name="text" translatable="yes">5.0</property>
                     <property name="adjustment">adjLeftY</property>
                     <property name="digits">1</property>
-                    <property name="value">282</property>
+                    <property name="value">367</property>
                     <signal name="changed" handler="on_leftcoorY_changed" swapped="no"/>
                     <signal name="value-changed" handler="on_leftcoorX_changed" swapped="no"/>
                   </object>
@@ -422,7 +422,7 @@ MMC thread</property>
                     <property name="can_focus">True</property>
                     <property name="adjustment">adjFinalY</property>
                     <property name="digits">1</property>
-                    <property name="value">195</property>
+                    <property name="value">275</property>
                   </object>
                   <packing>
                     <property name="left_attach">3</property>
@@ -435,7 +435,7 @@ MMC thread</property>
                     <property name="can_focus">True</property>
                     <property name="adjustment">adjFinalX</property>
                     <property name="digits">1</property>
-                    <property name="value">192</property>
+                    <property name="value">162</property>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
